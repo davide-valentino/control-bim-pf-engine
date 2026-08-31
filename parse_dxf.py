@@ -23,7 +23,8 @@ for entity in msp:
         extracted_data["doors"].append({"start": start, "end": end})
 
 # Save output to JSON
-with open("raw_geometry.json", "w") as f:
+# write the raw json file in the ocal .output folder
+with open(".output/raw_geometry.json", "w") as f:
     json.dump(extracted_data, f, indent=2)
 
-print("DXF parsing complete. Output written to raw_geometry.json")
+print("DXF parsing complete. Output written to .output/raw_geometry.json")
