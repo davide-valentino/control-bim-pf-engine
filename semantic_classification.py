@@ -32,12 +32,39 @@ def stitch_walls(walls):
     return loops
 
 
+def point_in_polygon(point, polygon):
+    """Ray-casting point-in-polygon algorithm."""
+    x, y = point
+    inside = False
+    n = len(polygon)
+    for i in range(n - 1):
+        x1, y1 = polygon[i]
+        x2, y2 = polygon[i + 1]
+        if ((y1 > y) != (y2 > y)):
+            x_intersect = (x2 - x1) * (y - y1) / (y2 - y1) + x1
+            if x < x_intersect:
+                inside = not inside
+    return inside
+
+
 def classify_rooms(data):
-    stitched = stitch_walls(data["walls"])
+    stitched = stitch_walls(data.get("walls", []))
+    labels = data.get("labels", [])
     rooms = []
-    for loop in stitched:
-        rooms.append({"boundary": loop})
-    return {"rooms": rooms, "doors": data["doors"]}
+    for idx, loop in enumerate(stitched, start=1):
+        room_name = None
+        for label in labels:
+            pos = label.get("position")
+            if pos and point_in_polygon(pos, loop):
+                room_name = label.get("text")
+                break
+        
+        room_data = {
+            "name": room_name if room_name else f"Room {idx}",
+            "boundary": loop
+        }
+        rooms.append(room_data)
+    return {"rooms": rooms, "doors": data.get("doors", [])}
 
 
 if __name__ == "__main__":

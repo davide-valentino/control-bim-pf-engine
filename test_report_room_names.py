@@ -26,11 +26,4 @@ def test_report_room_names():
 
     room = rooms_breakdown[0]
     assert "name" in room, "Missing 'name' field in room breakdown"
-
-    # If semantic stage provided a name, it should appear here; otherwise fallback
-    expected_name = room.get("name")
-    assert expected_name.startswith("Room") or isinstance(expected_name, str), f"Unexpected room name: {expected_name}"
-
-    # Validate consistency with room_id fallback
-    if expected_name.startswith("Room"):
-        assert expected_name == f"Room {room['room_id']}", f"Fallback name mismatch: {expected_name}"
+    assert room["name"] == "Living Room", f"Expected 'Living Room', got {room.get('name')}"

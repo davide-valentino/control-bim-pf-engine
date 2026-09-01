@@ -16,10 +16,13 @@ def load_semantic(path=".output/semantic.json"):
 def assign_materials(data):
     enriched_rooms = []
     for room in data["rooms"]:
-        enriched_rooms.append({
+        room_info = {
             "boundary": room["boundary"],
             "material": MATERIAL_CATALOG["wall"]
-        })
+        }
+        if "name" in room:
+            room_info["name"] = room["name"]
+        enriched_rooms.append(room_info)
     enriched_doors = []
     for door in data["doors"]:
         enriched_doors.append({

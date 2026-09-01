@@ -32,3 +32,8 @@ def test_raw_geometry_structure_and_coordinates():
     # Validate doors
     assert len(data["doors"]) == 1, f"Expected 1 door, got {len(data['doors'])}"
     assert data["doors"][0] == expected_door, f"Door mismatch: expected {expected_door}, got {data['doors'][0]}"
+
+    # Validate labels
+    assert "labels" in data, "Missing 'labels' key"
+    assert len(data["labels"]) == 1, f"Expected 1 label, got {len(data['labels'])}"
+    assert data["labels"][0] == {"text": "Living Room", "position": [2500.0, 2000.0]}
