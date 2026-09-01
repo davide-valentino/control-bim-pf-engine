@@ -35,11 +35,24 @@ def generate_summary(report):
     costs = report.get("costs") or {}
     total_cost = costs.get("total_cost", 0.0)
 
+    # Material breakdown from costs items
+    breakdown = {}
+    for item in costs.get("items", []):
+        mat = item["material"]
+        if mat not in breakdown:
+            breakdown[mat] = {"type": item["type"], "area_m2": 0.0, "count": 0, "cost": 0.0}
+        breakdown[mat]["cost"] += item["cost"]
+        if item["type"] == "wall":
+            breakdown[mat]["area_m2"] += item.get("area_m2", 0.0)
+        elif item["type"] == "door":
+            breakdown[mat]["count"] += item.get("count", 0)
+
     return {
         "rooms": total_rooms,
         "doors": total_doors,
         "wall_area_m2": total_area_m2,
-        "total_cost": total_cost
+        "total_cost": total_cost,
+        "materials_breakdown": breakdown
     }
 
 def generate_report():
