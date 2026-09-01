@@ -30,6 +30,9 @@ def generate_rooms_breakdown(report):
             area_mm2 = polygon_area(boundary)
             area_m2 = area_mm2 / 1_000_000.0
 
+        # Room name from semantic stage
+        room_name = room.get("name", f"Room {idx}")
+
         # Find wall material cost
         wall_item = next((i for i in costs.get("items", []) if i["type"] == "wall"), None)
         wall_cost = wall_item["cost"] if wall_item else 0.0
@@ -43,6 +46,7 @@ def generate_rooms_breakdown(report):
 
         rooms_breakdown.append({
             "room_id": idx,
+            "name": room_name,
             "area_m2": area_m2,
             "materials": {
                 "wall": {"material": wall_material, "area_m2": area_m2, "cost": wall_cost},
@@ -92,7 +96,7 @@ def generate_summary(report):
         "materials_breakdown": breakdown,
         "rooms_breakdown": generate_rooms_breakdown(report)
     }
-    
+
     return summary
 
 def generate_report():
