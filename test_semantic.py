@@ -1,7 +1,25 @@
 import subprocess
 import json
 import os
-from semantic_classification import point_in_polygon, classify_rooms
+from semantic_classification import (
+    point_in_polygon,
+    classify_rooms,
+    normalize_label,
+    polygon_centroid
+)
+
+
+def test_normalize_label():
+    assert normalize_label("  living   room  ") == "Living Room"
+    assert normalize_label("KITCHEN") == "Kitchen"
+    assert normalize_label("BR") == "Bedroom"
+    assert normalize_label("KITCH") == "Kitchen"
+    assert normalize_label("MBR") == "Master Bedroom"
+    assert normalize_label("wc") == "WC"
+    assert normalize_label("%%uBEDROOM%%u") == "Bedroom"
+    assert normalize_label("{\\fArial;Dining Room}") == "Dining Room"
+    assert normalize_label("Utility\\PStorage") == "Utility Storage"
+    assert normalize_label("") == ""
 
 
 def test_point_in_polygon():
@@ -21,6 +39,69 @@ def test_point_in_polygon():
     assert point_in_polygon([2500.0, 5000.0], polygon) is False
 
 
+def test_polygon_centroid():
+    polygon = [
+        [0.0, 0.0],
+        [4000.0, 0.0],
+        [4000.0, 2000.0],
+        [0.0, 2000.0],
+        [0.0, 0.0]
+    ]
+    cx, cy = polygon_centroid(polygon)
+    assert abs(cx - 2000.0) < 1e-3
+    assert abs(cy - 1000.0) < 1e-3
+
+
+def test_multi_label_handling():
+    raw_data = {
+        "walls": [
+            {"start": [0.0, 0.0], "end": [6000.0, 0.0]},
+            {"start": [6000.0, 0.0], "end": [6000.0, 4000.0]},
+            {"start": [6000.0, 4000.0], "end": [0.0, 4000.0]},
+            {"start": [0.0, 4000.0], "end": [0.0, 0.0]}
+        ],
+        "doors": [],
+        "labels": [
+            {"text": "KIT", "position": [1500.0, 2000.0]},
+            {"text": "DIN", "position": [4500.0, 2000.0]},
+            {"text": "KIT", "position": [1600.0, 2000.0]}  # Duplicate to test deduplication
+        ]
+    }
+    result = classify_rooms(raw_data)
+    assert len(result["rooms"]) == 1
+    assert result["rooms"][0]["name"] == "Kitchen / Dining"
+    assert result["rooms"][0]["room_id"] == 1
+
+
+def test_multi_room_classification():
+    # Two adjacent rooms: Room 1 [0,0] to [3000, 3000], Room 2 [3000, 0] to [6000, 3000]
+    raw_data = {
+        "walls": [
+            # Room 1
+            {"start": [0.0, 0.0], "end": [3000.0, 0.0]},
+            {"start": [3000.0, 0.0], "end": [3000.0, 3000.0]},
+            {"start": [3000.0, 3000.0], "end": [0.0, 3000.0]},
+            {"start": [0.0, 3000.0], "end": [0.0, 0.0]},
+            # Room 2
+            {"start": [3000.0, 0.0], "end": [6000.0, 0.0]},
+            {"start": [6000.0, 0.0], "end": [6000.0, 3000.0]},
+            {"start": [6000.0, 3000.0], "end": [3000.0, 3000.0]},
+            {"start": [3000.0, 3000.0], "end": [3000.0, 0.0]}
+        ],
+        "doors": [],
+        "labels": [
+            {"text": "BR", "position": [1500.0, 1500.0]},
+            {"text": "BA", "position": [4500.0, 1500.0]}
+        ]
+    }
+    result = classify_rooms(raw_data)
+    assert len(result["rooms"]) == 2
+    assert result["rooms"][0]["room_id"] == 1
+    assert result["rooms"][0]["name"] == "Bedroom"
+    assert result["rooms"][1]["room_id"] == 2
+    assert result["rooms"][1]["name"] == "Bathroom"
+
+
 def test_semantic_fallback_when_no_label():
     raw_data = {
         "walls": [
@@ -35,6 +116,7 @@ def test_semantic_fallback_when_no_label():
     result = classify_rooms(raw_data)
     assert len(result["rooms"]) == 1
     assert result["rooms"][0]["name"] == "Room 1"
+    assert result["rooms"][0]["room_id"] == 1
 
 
 def test_semantic_classification():

@@ -23,21 +23,25 @@ def estimate_cost(data):
     items = []
 
     # Walls
-    for room in data["rooms"]:
+    for idx, room in enumerate(data.get("rooms", []), start=1):
         boundary = room["boundary"]
         area_mm2 = polygon_area(boundary)
         area_m2 = area_mm2 / 1_000_000.0
         cost = area_m2 * room["material"]["cost_per_m2"]
-        items.append({
+        item = {
             "type": "wall",
+            "room_id": room.get("room_id", idx),
             "material": room["material"]["name"],
             "area_m2": area_m2,
             "cost": cost
-        })
+        }
+        if "name" in room:
+            item["room_name"] = room["name"]
+        items.append(item)
         total_cost += cost
 
     # Doors
-    for door in data["doors"]:
+    for door in data.get("doors", []):
         cost = door["material"]["cost_per_unit"]
         items.append({
             "type": "door",
