@@ -10,26 +10,24 @@ def load_geometry(path=".output/raw_geometry.json"):
 def stitch_walls(walls):
     # naive stitching: chain segments by matching endpoints
     loops = []
-    used = set()
-    for wall in walls:
-        if tuple(wall["start"]) in used:
+    used_walls = set()
+    for i, wall in enumerate(walls):
+        if i in used_walls:
             continue
         loop = [wall["start"], wall["end"]]
-        used.add(tuple(wall["start"]))
-        used.add(tuple(wall["end"]))
+        used_walls.add(i)
         current = wall["end"]
-        while True:
-            next_wall = next((w for w in walls if tuple(w["start"]) == tuple(current) and tuple(w["end"]) not in used), None)
+        while current != wall["start"]:
+            next_idx, next_wall = next(
+                ((idx, w) for idx, w in enumerate(walls) if idx not in used_walls and w["start"] == current),
+                (None, None)
+            )
             if not next_wall:
                 break
             loop.append(next_wall["end"])
-            used.add(tuple(next_wall["start"]))
-            used.add(tuple(next_wall["end"]))
+            used_walls.add(next_idx)
             current = next_wall["end"]
-            if current == wall["start"]:
-                loop.append(current)
-                break
-        if len(loop) > 2:
+        if len(loop) > 2 and loop[0] == loop[-1]:
             loops.append(loop)
     return loops
 
