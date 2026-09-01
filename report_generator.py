@@ -16,6 +16,43 @@ def polygon_area(boundary):
         area += x1*y2 - x2*y1
     return abs(area) / 2.0  # mm^2
 
+def generate_rooms_breakdown(report):
+    rooms_breakdown = []
+    semantic = report.get("semantic") or {}
+    rooms = semantic.get("rooms", [])
+    doors = semantic.get("doors", [])
+    costs = report.get("costs") or {}
+
+    for idx, room in enumerate(rooms, start=1):
+        boundary = room.get("boundary", [])
+        area_m2 = 0.0
+        if boundary:
+            area_mm2 = polygon_area(boundary)
+            area_m2 = area_mm2 / 1_000_000.0
+
+        # Find wall material cost
+        wall_item = next((i for i in costs.get("items", []) if i["type"] == "wall"), None)
+        wall_cost = wall_item["cost"] if wall_item else 0.0
+        wall_material = wall_item["material"] if wall_item else None
+
+        # Find door material cost
+        door_item = next((i for i in costs.get("items", []) if i["type"] == "door"), None)
+        door_cost = door_item["cost"] if door_item else 0.0
+        door_material = door_item["material"] if door_item else None
+        door_count = door_item["count"] if door_item else 0
+
+        rooms_breakdown.append({
+            "room_id": idx,
+            "area_m2": area_m2,
+            "materials": {
+                "wall": {"material": wall_material, "area_m2": area_m2, "cost": wall_cost},
+                "door": {"material": door_material, "count": door_count, "cost": door_cost}
+            },
+            "total_cost": wall_cost + door_cost
+        })
+
+    return rooms_breakdown
+
 def generate_summary(report):
     semantic = report.get("semantic") or {}
     rooms = semantic.get("rooms", [])
@@ -47,13 +84,16 @@ def generate_summary(report):
         elif item["type"] == "door":
             breakdown[mat]["count"] += item.get("count", 0)
 
-    return {
+    summary = {
         "rooms": total_rooms,
         "doors": total_doors,
         "wall_area_m2": total_area_m2,
         "total_cost": total_cost,
-        "materials_breakdown": breakdown
+        "materials_breakdown": breakdown,
+        "rooms_breakdown": generate_rooms_breakdown(report)
     }
+    
+    return summary
 
 def generate_report():
     report = {
