@@ -1,11 +1,12 @@
 import subprocess
 import json
 import os
+import sys
 
 
 def test_cost_estimation():
     # Run the cost estimation script to regenerate output
-    result = subprocess.run(["python", "cost_estimation.py"], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "cost_estimation.py"], capture_output=True, text=True)
     assert result.returncode == 0, f"Cost estimation failed: {result.stderr}"
 
     # Ensure output file exists

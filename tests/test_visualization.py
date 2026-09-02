@@ -1,6 +1,6 @@
 import json
 import os
-from visualization import generate_svg
+from src.visualization import generate_svg
 
 
 def test_visualization_svg_generation():

@@ -1,11 +1,12 @@
 import subprocess
 import json
 import os
+import sys
 
 
 def test_parser_integration():
     # Run the parser script to regenerate output
-    result = subprocess.run(["python", "parse_dxf.py"], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "parse_dxf.py"], capture_output=True, text=True)
     assert result.returncode == 0, f"Parser failed: {result.stderr}"
 
     # Ensure output file exists

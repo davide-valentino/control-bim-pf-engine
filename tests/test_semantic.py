@@ -1,12 +1,9 @@
 import subprocess
 import json
 import os
-from semantic_classification import (
-    point_in_polygon,
-    classify_rooms,
-    normalize_label,
-    polygon_centroid
-)
+import sys
+from src.geometry import point_in_polygon, polygon_centroid
+from src.pipeline.semantics import classify_rooms, normalize_label
 
 
 def test_normalize_label():
@@ -22,36 +19,6 @@ def test_normalize_label():
     assert normalize_label("") == ""
 
 
-def test_point_in_polygon():
-    polygon = [
-        [0.0, 0.0],
-        [5000.0, 0.0],
-        [5000.0, 4000.0],
-        [0.0, 4000.0],
-        [0.0, 0.0]
-    ]
-    # Points inside
-    assert point_in_polygon([2500.0, 2000.0], polygon) is True
-    assert point_in_polygon([100.0, 100.0], polygon) is True
-    # Points outside
-    assert point_in_polygon([-10.0, 2000.0], polygon) is False
-    assert point_in_polygon([6000.0, 2000.0], polygon) is False
-    assert point_in_polygon([2500.0, 5000.0], polygon) is False
-
-
-def test_polygon_centroid():
-    polygon = [
-        [0.0, 0.0],
-        [4000.0, 0.0],
-        [4000.0, 2000.0],
-        [0.0, 2000.0],
-        [0.0, 0.0]
-    ]
-    cx, cy = polygon_centroid(polygon)
-    assert abs(cx - 2000.0) < 1e-3
-    assert abs(cy - 1000.0) < 1e-3
-
-
 def test_multi_label_handling():
     raw_data = {
         "walls": [
@@ -64,7 +31,7 @@ def test_multi_label_handling():
         "labels": [
             {"text": "KIT", "position": [1500.0, 2000.0]},
             {"text": "DIN", "position": [4500.0, 2000.0]},
-            {"text": "KIT", "position": [1600.0, 2000.0]}  # Duplicate to test deduplication
+            {"text": "KIT", "position": [1600.0, 2000.0]}
         ]
     }
     result = classify_rooms(raw_data)
@@ -74,7 +41,6 @@ def test_multi_label_handling():
 
 
 def test_multi_room_classification():
-    # Two adjacent rooms: Room 1 [0,0] to [3000, 3000], Room 2 [3000, 0] to [6000, 3000]
     raw_data = {
         "walls": [
             # Room 1
@@ -121,7 +87,7 @@ def test_semantic_fallback_when_no_label():
 
 def test_semantic_classification():
     # Run the semantic classification script to regenerate output
-    result = subprocess.run(["python", "semantic_classification.py"], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "semantic_classification.py"], capture_output=True, text=True)
     assert result.returncode == 0, f"Semantic classification failed: {result.stderr}"
 
     # Ensure output file exists

@@ -1,11 +1,12 @@
 import subprocess
 import json
 import os
+import sys
 
 
 def test_report_summary():
     # Run the report generator script to regenerate output
-    result = subprocess.run(["python", "report_generator.py"], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "report_generator.py"], capture_output=True, text=True)
     assert result.returncode == 0, f"Report generator failed: {result.stderr}"
 
     # Ensure output file exists

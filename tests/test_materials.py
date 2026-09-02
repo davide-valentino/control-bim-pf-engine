@@ -1,11 +1,12 @@
 import subprocess
 import json
 import os
+import sys
 
 
 def test_material_assignment():
     # Run the material assignment script to regenerate output
-    result = subprocess.run(["python", "material_assignment.py"], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, "material_assignment.py"], capture_output=True, text=True)
     assert result.returncode == 0, f"Material assignment failed: {result.stderr}"
 
     # Ensure output file exists
