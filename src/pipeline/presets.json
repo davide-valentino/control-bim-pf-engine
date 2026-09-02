@@ -12,6 +12,18 @@
         "floors": { "material": "Ceramic Tile", "cost_per_m2": 35.0 },
         "doors": { "material": "Oak Veneer Door", "cost_per_unit": 180.0 },
         "windows": { "material": "Glass Panel Window", "cost_per_m2": 100.0 }
+      },
+      "Bedroom": {
+        "walls": { "material": "Soft White Paint", "cost_per_m2": 16.0 },
+        "floors": { "material": "Walnut Hardwood", "cost_per_m2": 50.0 },
+        "doors": { "material": "Oak Veneer Door", "cost_per_unit": 180.0 },
+        "windows": { "material": "Full Height Glass", "cost_per_m2": 110.0 }
+      },
+      "Bathroom": {
+        "walls": { "material": "Porcelain Tile", "cost_per_m2": 40.0 },
+        "floors": { "material": "Marble Tile", "cost_per_m2": 60.0 },
+        "doors": { "material": "Frosted Glass Door", "cost_per_unit": 220.0 },
+        "windows": { "material": "Frosted Glass Window", "cost_per_m2": 95.0 }
       }
     },
     "Rustic": {
@@ -26,6 +38,18 @@
         "floors": { "material": "Terracotta Tile", "cost_per_m2": 30.0 },
         "doors": { "material": "Wrought Iron Door", "cost_per_unit": 200.0 },
         "windows": { "material": "Small Pane Window", "cost_per_m2": 70.0 }
+      },
+      "Bedroom": {
+        "walls": { "material": "Timber Paneling", "cost_per_m2": 22.0 },
+        "floors": { "material": "Wide Plank Wood", "cost_per_m2": 38.0 },
+        "doors": { "material": "Carved Wood Door", "cost_per_unit": 160.0 },
+        "windows": { "material": "Wood Frame Window", "cost_per_m2": 75.0 }
+      },
+      "Bathroom": {
+        "walls": { "material": "Stone Tile", "cost_per_m2": 35.0 },
+        "floors": { "material": "Terracotta Tile", "cost_per_m2": 28.0 },
+        "doors": { "material": "Wood Door with Iron Handle", "cost_per_unit": 170.0 },
+        "windows": { "material": "Small Pane Window", "cost_per_m2": 65.0 }
       }
     },
     "Industrial": {
@@ -40,6 +64,18 @@
         "floors": { "material": "Steel Plate Flooring", "cost_per_m2": 50.0 },
         "doors": { "material": "Glass Insert Door", "cost_per_unit": 210.0 },
         "windows": { "material": "Large Pane Window", "cost_per_m2": 95.0 }
+      },
+      "Bedroom": {
+        "walls": { "material": "Exposed Concrete", "cost_per_m2": 20.0 },
+        "floors": { "material": "Polished Concrete", "cost_per_m2": 30.0 },
+        "doors": { "material": "Steel Frame Door", "cost_per_unit": 200.0 },
+        "windows": { "material": "Metal Frame Window", "cost_per_m2": 85.0 }
+      },
+      "Bathroom": {
+        "walls": { "material": "Concrete Tile", "cost_per_m2": 28.0 },
+        "floors": { "material": "Epoxy Resin Flooring", "cost_per_m2": 45.0 },
+        "doors": { "material": "Glass Insert Door", "cost_per_unit": 210.0 },
+        "windows": { "material": "Industrial Glass Block", "cost_per_m2": 70.0 }
       }
     }
   }

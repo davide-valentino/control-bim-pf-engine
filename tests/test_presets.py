@@ -160,7 +160,7 @@ def test_match_room_preset_compound_and_fallback():
     assert matched_lower["walls"]["material"] == "White Drywall"
 
     # Fallback to Living Room for unlisted rooms
-    matched_unknown = match_room_preset("Bedroom", preset)
+    matched_unknown = match_room_preset("Closet", preset)
     assert matched_unknown["walls"]["material"] == "White Drywall"
 
 
