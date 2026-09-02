@@ -23,7 +23,8 @@ cad-tests/
 │       ├── __init__.py
 │       ├── parser.py           # DXF entity extraction (walls, doors, text/labels)
 │       ├── semantics.py        # Wall stitching & room classification
-│       ├── materials.py        # Material catalog assignment
+│       ├── materials.py        # Material catalog assignment & style presets
+│       ├── presets.json        # Style presets catalog (Luxury Minimal, Rustic, Industrial)
 │       ├── costing.py          # BOM estimation & pricing engine
 │       └── export.py           # Export utilities (CSV, IFC, etc.)
 │
@@ -37,6 +38,7 @@ cad-tests/
 │   ├── test_parse.py           # DXF parsing tests
 │   ├── test_semantic.py        # Semantic classification & spatial label tests
 │   ├── test_materials.py       # Material assignment tests
+│   ├── test_presets.py         # Style preset catalog & mapping tests
 │   ├── test_costs.py           # Costing tests
 │   ├── test_integration.py     # End-to-end integration tests
 │   ├── test_report.py          # Consolidated report structure tests
