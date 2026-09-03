@@ -1,6 +1,6 @@
-# Deterministic ControlNet Evaluation Path
+# Deterministic ControlNet Evaluation Path (`pf-engine`)
 
-This document describes the architecture, setup, configuration, and execution of the deterministic ControlNet evaluation path in `cad-tests`.
+This document describes the architecture, setup, configuration, and execution of the deterministic ControlNet evaluation path in `pf-engine`.
 
 ---
 

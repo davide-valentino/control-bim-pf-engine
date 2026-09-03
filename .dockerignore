@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env.local
+.output/
+artifacts/evaluations/
+artifacts/replays/
+artifacts/feasibility/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.vscode/
+.cache/

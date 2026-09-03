@@ -1,13 +1,13 @@
-# DXF to BIM & BOM Pipeline Architecture
+# DXF to BIM & BOM Pipeline Architecture (`pf-engine`)
 
-This document describes the modular architecture of the **CAD Tests (DXF to BIM & BOM)** pipeline.
+This document describes the modular architecture of the **Pre-Feasibility Engine (DXF to BIM & BOM)** pipeline.
 
 ---
 
 ## 🗂️ Directory Structure
 
 ```
-cad-tests/
+pf-engine/
 │
 ├── pyproject.toml              # Dependencies & pytest configuration
 ├── poetry.lock
