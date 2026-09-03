@@ -46,7 +46,10 @@ simple_room.dxf / CAD Input
 | `REPLICATE_CONTROLNET_DEPTH_MODEL` | No | `lucataco/sdxl-controlnet-depth:465fb41789dc2203a9d7158be11d1d2570606a039c65e0e236fd329b5eecb10c` | Model identifier for interior depth restyling. |
 | `REPLICATE_CONTROLNET_CANNY_MODEL` | No | `jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613` | Model identifier for floorplans and Canny edges. |
 | `REPLICATE_CONTROLNET_FACADE_MODEL` | No | `jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613` | Model identifier for building facades. |
-| `IOU_THRESHOLD` | No | `0.85` | Minimum acceptable silhouette IoU score. |
+| `IOU_THRESHOLD` | No | `0.85` | Hard failure threshold for silhouette IoU. |
+| `IOU_WARN_THRESHOLD` | No | `0.90` | Warning threshold for silhouette IoU in tiered gating. |
+| `LATENCY_BUDGET_MS` | No | None | Optional P95 latency budget in milliseconds. |
+| `WARMUP_PROBE` | No | `0` | Set to `1` to run a model warm-up probe before timed evaluation runs. |
 | `MAX_DATA_URL_SIZE_BYTES` | No | `5000000` (5 MB) | Maximum size for inline base64 data URLs before failing. |
 
 ---
@@ -69,17 +72,47 @@ simple_room.dxf / CAD Input
 python scripts/run_controlnet_validation.py --cases tests/fixtures/cases_fast.json
 ```
 
-### Full Multi-Case Evaluation Harness
+### Curated 3-Case Stability Sweep with Warmup Probe
 ```bash
-python -m src.pipeline.evaluation_executor --cases cases.json --provider replicate --runs-per-case 1
+poetry run python -m src.pipeline.evaluation_executor --cases cases.json --provider replicate --runs-per-case 3 --warmup
+```
+
+### Full 12-Case Multi-Style Sweep
+```bash
+poetry run python -m src.pipeline.evaluation_executor --cases tests/fixtures/cases_style_sweep.json --provider replicate --runs-per-case 1 --warmup
+```
+
+### Deterministic Replay Verification
+```bash
+poetry run python -m src.pipeline.evaluation_executor --replay artifacts/evaluations/20260903T105438Z/runs.json
+```
+
+### Direct Terminal Python Execution Snippet
+```python
+import os, json
+from src.pipeline.evaluation_executor import execute_evaluation
+
+cases = [
+    {
+        "caseId": "quick-test-001",
+        "inputType": "interior",
+        "targetStyle": "luxury-minimal",
+        "localImagePath": "tests/fixtures/sample_interior.png",
+        "silhouettePath": "tests/fixtures/sample_interior.png"
+    }
+]
+
+result = execute_evaluation(cases=cases, provider="replicate", runs_per_case=1, warmup=True)
+print(json.dumps(result["summary"], indent=2))
 ```
 
 ### Running Test Suite
 ```bash
-# Run unit tests
+# Run full unit and offline test suite
 poetry run pytest -q
 
 # Run real provider integration tests (requires REPLICATE_API_TOKEN)
+set -a && source .env.local && set +a
 poetry run pytest -q -m real_provider
 ```
 

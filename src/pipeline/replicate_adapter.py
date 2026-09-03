@@ -48,33 +48,66 @@ class RenderResult:
     warning: str | None = None
 
 
+def extract_single_url(item: Any) -> str:
+    """Extract a single string URL from a response item or FileOutput."""
+    if isinstance(item, str):
+        return item
+    if hasattr(item, "url"):
+        url_attr = getattr(item, "url")
+        return str(url_attr() if callable(url_attr) else url_attr)
+    if hasattr(item, "read"):
+        return str(item)
+    if isinstance(item, dict):
+        for k in ("url", "output", "image", "imageUrl", "outputImageUrl"):
+            if k in item and item[k]:
+                return extract_single_url(item[k])
+    if isinstance(item, list) and len(item) > 0:
+        return extract_single_url(item[0])
+    return str(item)
+
+
+def extract_output_and_control_map(response: Any) -> tuple[str, str | None]:
+    """Extract (output_image_url, debug_control_map_url) from Replicate response."""
+    if isinstance(response, list):
+        if len(response) == 0:
+            raise RuntimeError("Replicate response list is empty.")
+        if len(response) == 1:
+            return extract_single_url(response[0]), None
+        # Multi-output models (e.g. jagilley/controlnet-canny returns [canny_edge_map, output_image_0, ...])
+        control_map_url = extract_single_url(response[0])
+        output_url = extract_single_url(response[-1])
+        return output_url, control_map_url
+
+    if isinstance(response, dict):
+        output_url = None
+        control_url = None
+        for key in ("output", "image", "imageUrl", "outputImageUrl", "renderedImage"):
+            if response.get(key) is not None:
+                if isinstance(response[key], list) and len(response[key]) > 1:
+                    return extract_output_and_control_map(response[key])
+                output_url = extract_single_url(response[key])
+                break
+        for key in ("debugControlMapUrl", "debug_control_map", "controlMap", "control_map", "canny_map"):
+            if response.get(key) is not None:
+                control_url = extract_single_url(response[key])
+                break
+        if output_url:
+            return output_url, control_url
+
+    output_url = extract_single_url(response)
+    return output_url, None
+
+
 def extract_output_image_url(response: Any) -> str:
     """Extract output image URL from Replicate response."""
-    if isinstance(response, str):
-        return response
-    if hasattr(response, "url"):
-        url_attr = getattr(response, "url")
-        return str(url_attr() if callable(url_attr) else url_attr)
-    if isinstance(response, list) and len(response) > 0:
-        return extract_output_image_url(response[0])
-    if isinstance(response, dict):
-        if "output" in response:
-            return extract_output_image_url(response["output"])
-    if hasattr(response, "read"):
-        # File-like with string representation
-        return str(response)
-    raise RuntimeError("Replicate response did not contain a usable output image URL.")
+    output_url, _ = extract_output_and_control_map(response)
+    return output_url
 
 
 def extract_debug_control_map(response: Any) -> str | None:
     """Extract debug control map URL from Replicate response if provided by model."""
-    if isinstance(response, dict):
-        for key in ("debugControlMapUrl", "debug_control_map", "controlMap", "control_map"):
-            if response.get(key) is not None:
-                return extract_output_image_url(response[key])
-        if isinstance(response.get("output"), dict):
-            return extract_debug_control_map(response["output"])
-    return None
+    _, control_map_url = extract_output_and_control_map(response)
+    return control_map_url
 
 
 class ReplicateAdapter:
@@ -87,6 +120,35 @@ class ReplicateAdapter:
         timeout_config = httpx.Timeout(300.0, connect=60.0)
         self.client = replicate.Client(api_token=auth_token, timeout=timeout_config)
         self.artifact_dir = artifact_dir
+
+    def warmup_models(
+        self,
+        input_types: set[str] | list[str],
+        sample_images: dict[str, str] | None = None,
+    ) -> dict[str, int]:
+        """Execute a warmup probe for each unique model to eliminate cold-start latency."""
+        sample_images = sample_images or {
+            "interior": "tests/fixtures/sample_interior.png",
+            "facade": "tests/fixtures/sample_facade.png",
+            "floorplan": "tests/fixtures/sample_floorplan.png",
+        }
+        warmup_latencies: dict[str, int] = {}
+        for itype in sorted(set(input_types)):
+            model_id = select_model_id(itype, {})
+            if model_id in warmup_latencies:
+                continue
+            img_path = sample_images.get(itype, "tests/fixtures/sample_interior.png")
+            payload = EvalPayload(
+                caseId=f"warmup-{itype}",
+                inputType=itype,
+                targetStyle="midrange-modern",
+                localImagePath=img_path,
+            )
+            print(f"[Warmup Probe] Warming up model '{model_id.split(':')[0]}'...", flush=True)
+            res = self.run(payload, overrides={"numInferenceSteps": 20}, run_id=0)
+            warmup_latencies[model_id] = res.latencyMs
+            print(f"  -> Model '{model_id.split(':')[0]}' warmed up in {res.latencyMs} ms.", flush=True)
+        return warmup_latencies
 
     def build_prompts(self, payload: EvalPayload, overrides: dict | None = None):
         """Construct positive and negative prompts based on inputType and targetStyle."""
@@ -144,7 +206,7 @@ class ReplicateAdapter:
             )
 
         # Log sanitized payload (contains no API tokens)
-        if self.artifact_dir:
+        if self.artifact_dir and run_id > 0:
             os.makedirs(self.artifact_dir, exist_ok=True)
             payload_log_path = os.path.join(
                 self.artifact_dir, f"payload-{payload.caseId}-run{run_id}.json"

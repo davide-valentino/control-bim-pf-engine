@@ -127,3 +127,36 @@ def test_model_selection():
     assert "canny" in select_model_id("floorplan").lower()
     assert "depth" in select_model_id("interior").lower()
     assert "custom-model" == select_model_id("facade", {"model": "custom-model"})
+
+
+def test_extract_output_and_control_map():
+    from src.pipeline.replicate_adapter import (
+        extract_debug_control_map,
+        extract_output_and_control_map,
+        extract_output_image_url,
+    )
+
+    # Multi-item list (canny edge map + generated image)
+    multi_list = ["https://replicate.delivery/canny.png", "https://replicate.delivery/render.png"]
+    out, ctrl = extract_output_and_control_map(multi_list)
+    assert out == "https://replicate.delivery/render.png"
+    assert ctrl == "https://replicate.delivery/canny.png"
+    assert extract_output_image_url(multi_list) == "https://replicate.delivery/render.png"
+    assert extract_debug_control_map(multi_list) == "https://replicate.delivery/canny.png"
+
+    # Single-item list (depth generated image)
+    single_list = ["https://replicate.delivery/depth_render.png"]
+    out_s, ctrl_s = extract_output_and_control_map(single_list)
+    assert out_s == "https://replicate.delivery/depth_render.png"
+    assert ctrl_s is None
+    assert extract_output_image_url(single_list) == "https://replicate.delivery/depth_render.png"
+    assert extract_debug_control_map(single_list) is None
+
+    # Dict response
+    dict_resp = {
+        "output": "https://replicate.delivery/dict_render.png",
+        "control_map": "https://replicate.delivery/dict_control.png",
+    }
+    out_d, ctrl_d = extract_output_and_control_map(dict_resp)
+    assert out_d == "https://replicate.delivery/dict_render.png"
+    assert ctrl_d == "https://replicate.delivery/dict_control.png"

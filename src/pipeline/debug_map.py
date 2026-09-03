@@ -74,14 +74,24 @@ def save_control_map_and_mask(control_map_source, out_control_path, out_mask_pat
     img.save(out_control_path)
 
     arr = np.asarray(img)
-    mask = arr >= threshold
-    if mask.sum() == 0 and arr.max() > 0:
-        mask = arr > 0
+
+    # Determine polarity: check if image has a white canvas / inverted background (e.g. provider canny output)
+    border_pixels = np.concatenate([arr[0, :], arr[-1, :], arr[:, 0], arr[:, -1]])
+    if (border_pixels > threshold).mean() > 0.8 and (arr > threshold).mean() > 0.6:
+        # Inverted polarity (white canvas with dark line edges)
+        edge_mask = arr < threshold
+    else:
+        # Standard polarity (dark canvas with white line edges/shapes)
+        edge_mask = arr >= threshold
+        if edge_mask.sum() == 0 and arr.max() > 0:
+            edge_mask = arr > 0
 
     # Fill closed boundary holes to ensure valid silhouette mask
-    filled = ndi.binary_fill_holes(mask)
-    if filled.sum() > mask.sum():
+    filled = ndi.binary_fill_holes(edge_mask)
+    if filled.sum() > edge_mask.sum():
         mask = filled
+    else:
+        mask = edge_mask
 
     os.makedirs(os.path.dirname(out_mask_path) or ".", exist_ok=True)
     mask_img = Image.fromarray((mask * 255).astype(np.uint8), mode="L")

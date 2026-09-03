@@ -66,3 +66,36 @@ def test_real_provider_evaluation_run(tmp_path):
     threshold = float(os.getenv("IOU_THRESHOLD", "0.85"))
     assert iou >= threshold, f"IoU {iou} below threshold {threshold}"
     assert run["passed"] is True
+
+
+def test_calculate_stats():
+    from src.pipeline.evaluation_executor import calculate_stats
+
+    empty = calculate_stats([])
+    assert empty["mean"] == 0.0
+    assert empty["stddev"] == 0.0
+
+    stats = calculate_stats([10, 20, 30, 40, 50])
+    assert stats["mean"] == 30.0
+    assert stats["min"] == 10.0
+    assert stats["max"] == 50.0
+    assert stats["p50"] == 30.0
+    assert round(stats["stddev"], 2) == 14.14
+
+
+def test_percentile():
+    from src.pipeline.evaluation_executor import percentile
+
+    assert percentile([], 0.5) == 0.0
+    assert percentile([10, 20, 30, 40, 50], 0.5) == 30.0
+    assert percentile([10, 20, 30, 40, 50], 0.95) == 50.0
+
+
+def test_tiered_gating_and_stats():
+    from src.pipeline.evaluation_executor import calculate_stats
+
+    latencies = [15000, 16000, 18000, 20000]
+    stats = calculate_stats(latencies)
+    assert stats["mean"] == 17250.0
+    assert stats["p50"] == 18000.0
+    assert stats["p95"] == 20000.0
