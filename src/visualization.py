@@ -1,6 +1,11 @@
 """2D Floorplan SVG visualization generation."""
 import json
 import os
+import io
+import cairosvg
+import numpy as np
+import scipy.ndimage as ndi
+from PIL import Image
 from src.geometry import polygon_centroid
 
 
@@ -102,6 +107,22 @@ def generate_svg(data, output_path=".output/visualization.svg"):
     with open(output_path, "w") as f:
         f.write(svg_content)
     return svg_content
+
+
+def export_silhouette_mask(svg_path, out_mask_path, size=(1024, 1024)):
+    """Rasterize an SVG and save non-background geometry as a binary PNG mask."""
+    png_data = cairosvg.svg2png(url=svg_path, output_width=size[0], output_height=size[1])
+    image = Image.open(io.BytesIO(png_data))
+    arr = np.asarray(image)
+    if arr.ndim == 3 and arr.shape[2] == 4:
+        mask = arr[:, :, 3] > 0
+    else:
+        gray = np.asarray(image.convert("L"))
+        mask = gray < 250
+    filled = ndi.binary_fill_holes(mask)
+    os.makedirs(os.path.dirname(out_mask_path) or ".", exist_ok=True)
+    Image.fromarray((filled * 255).astype(np.uint8), mode="L").save(out_mask_path)
+    return out_mask_path
 
 
 if __name__ == "__main__":

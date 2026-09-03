@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies (libcairo)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcairo2
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+
+      - name: Install Python dependencies
+        run: |
+          poetry install --no-interaction
+
+      - name: Run standard test suite
+        run: |
+          poetry run pytest -v -m "not real_provider"
+
+      - name: Run real-provider integration tests (opt-in when secret is present)
+        if: env.REPLICATE_API_TOKEN != ''
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          REPLICATE_CONTROLNET_DEPTH_MODEL: ${{ secrets.REPLICATE_CONTROLNET_DEPTH_MODEL }}
+          IOU_THRESHOLD: "0.85"
+        run: |
+          poetry run pytest -v -m real_provider
+
+      - name: Run ControlNet evaluation harness smoke test
+        if: env.REPLICATE_API_TOKEN != ''
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          REPLICATE_CONTROLNET_DEPTH_MODEL: ${{ secrets.REPLICATE_CONTROLNET_DEPTH_MODEL }}
+          IOU_THRESHOLD: "0.85"
+        run: |
+          poetry run python -m src.pipeline.evaluation_executor --cases tests/fixtures/cases_fast.json --provider replicate --runs-per-case 1
+
+      - name: Upload evaluation artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlnet-eval-artifacts
+          path: artifacts/evaluations/

@@ -1,0 +1,8 @@
+[
+  {
+    "caseId": "interior-dxf-fast-001",
+    "inputType": "interior",
+    "targetStyle": "tropical-boutique",
+    "localImagePath": ".output/fast-input.png"
+  }
+]

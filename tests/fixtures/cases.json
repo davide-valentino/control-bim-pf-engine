@@ -1,0 +1,23 @@
+[
+  {
+    "caseId": "facade-curated-001",
+    "inputType": "facade",
+    "targetStyle": "tropical-boutique",
+    "localImagePath": "tests/fixtures/sample_facade.png",
+    "silhouettePath": "tests/fixtures/sample_facade.png"
+  },
+  {
+    "caseId": "floorplan-curated-001",
+    "inputType": "floorplan",
+    "targetStyle": "midrange-modern",
+    "localImagePath": "tests/fixtures/sample_floorplan.png",
+    "silhouettePath": "tests/fixtures/sample_floorplan.png"
+  },
+  {
+    "caseId": "interior-curated-001",
+    "inputType": "interior",
+    "targetStyle": "luxury-minimal",
+    "localImagePath": "tests/fixtures/sample_interior.png",
+    "silhouettePath": "tests/fixtures/sample_interior.png"
+  }
+]

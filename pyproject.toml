@@ -8,13 +8,25 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.11"
 ezdxf = "^1.4.4"
+replicate = "^1.0.7"
+pillow = "^12.3.0"
+numpy = "<2"
+requests = "^2.34.2"
+cairosvg = "^2.9.0"
+scikit-image = "^0.26.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.4.4"
 
+[tool.poetry.group.dev.dependencies]
+pytest-xdist = "^3.8.0"
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "real_provider: integration tests requiring real provider API credentials"
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
