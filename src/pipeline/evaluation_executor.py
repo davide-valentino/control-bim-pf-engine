@@ -65,7 +65,7 @@ def execute_evaluation(
     adapter = ReplicateAdapter(artifact_dir=str(target_dir))
     runs = []
 
-    for case_data in cases:
+    for case_idx, case_data in enumerate(cases):
         payload = case_data if isinstance(case_data, EvalPayload) else EvalPayload(**case_data)
         normalized_image = normalize_source(payload.imageUrl, payload.localImagePath)
 
@@ -75,6 +75,7 @@ def execute_evaluation(
         save_binary_mask(silhouette_source, silhouette_mask_path)
 
         for run_id in range(1, runs_per_case + 1):
+            print(f"[{case_idx+1}/{len(cases)}] Running {payload.caseId} (style: {payload.targetStyle}, type: {payload.inputType})...", flush=True)
             # 2. Local conditioning control map
             local_control_path = target_dir / f"controlmap-{payload.caseId}-run{run_id}.png"
             generate_control_map(
@@ -90,6 +91,7 @@ def execute_evaluation(
                 run_id=run_id,
                 local_control_map_path=str(local_control_path),
             )
+            print(f"  -> Generated in {render_result.latencyMs} ms. Output: {render_result.outputImageUrl[:60]}...", flush=True)
 
             # 4. Download and cache output image
             output_bytes = fetch_image_bytes(render_result.outputImageUrl)

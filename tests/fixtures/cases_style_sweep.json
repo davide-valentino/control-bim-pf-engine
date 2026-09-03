@@ -1,0 +1,86 @@
+[
+  {
+    "caseId": "interior-sweep-tropical-boutique",
+    "inputType": "interior",
+    "targetStyle": "tropical-boutique",
+    "localImagePath": "tests/fixtures/sample_interior.png",
+    "silhouettePath": "tests/fixtures/sample_interior.png"
+  },
+  {
+    "caseId": "interior-sweep-midrange-modern",
+    "inputType": "interior",
+    "targetStyle": "midrange-modern",
+    "localImagePath": "tests/fixtures/sample_interior.png",
+    "silhouettePath": "tests/fixtures/sample_interior.png"
+  },
+  {
+    "caseId": "interior-sweep-luxury-minimal",
+    "inputType": "interior",
+    "targetStyle": "luxury-minimal",
+    "localImagePath": "tests/fixtures/sample_interior.png",
+    "silhouettePath": "tests/fixtures/sample_interior.png"
+  },
+  {
+    "caseId": "interior-sweep-budget-functional",
+    "inputType": "interior",
+    "targetStyle": "budget-functional",
+    "localImagePath": "tests/fixtures/sample_interior.png",
+    "silhouettePath": "tests/fixtures/sample_interior.png"
+  },
+  {
+    "caseId": "facade-sweep-tropical-boutique",
+    "inputType": "facade",
+    "targetStyle": "tropical-boutique",
+    "localImagePath": "tests/fixtures/sample_facade.png",
+    "silhouettePath": "tests/fixtures/sample_facade.png"
+  },
+  {
+    "caseId": "facade-sweep-midrange-modern",
+    "inputType": "facade",
+    "targetStyle": "midrange-modern",
+    "localImagePath": "tests/fixtures/sample_facade.png",
+    "silhouettePath": "tests/fixtures/sample_facade.png"
+  },
+  {
+    "caseId": "facade-sweep-luxury-minimal",
+    "inputType": "facade",
+    "targetStyle": "luxury-minimal",
+    "localImagePath": "tests/fixtures/sample_facade.png",
+    "silhouettePath": "tests/fixtures/sample_facade.png"
+  },
+  {
+    "caseId": "facade-sweep-budget-functional",
+    "inputType": "facade",
+    "targetStyle": "budget-functional",
+    "localImagePath": "tests/fixtures/sample_facade.png",
+    "silhouettePath": "tests/fixtures/sample_facade.png"
+  },
+  {
+    "caseId": "floorplan-sweep-tropical-boutique",
+    "inputType": "floorplan",
+    "targetStyle": "tropical-boutique",
+    "localImagePath": "tests/fixtures/sample_floorplan.png",
+    "silhouettePath": "tests/fixtures/sample_floorplan.png"
+  },
+  {
+    "caseId": "floorplan-sweep-midrange-modern",
+    "inputType": "floorplan",
+    "targetStyle": "midrange-modern",
+    "localImagePath": "tests/fixtures/sample_floorplan.png",
+    "silhouettePath": "tests/fixtures/sample_floorplan.png"
+  },
+  {
+    "caseId": "floorplan-sweep-luxury-minimal",
+    "inputType": "floorplan",
+    "targetStyle": "luxury-minimal",
+    "localImagePath": "tests/fixtures/sample_floorplan.png",
+    "silhouettePath": "tests/fixtures/sample_floorplan.png"
+  },
+  {
+    "caseId": "floorplan-sweep-budget-functional",
+    "inputType": "floorplan",
+    "targetStyle": "budget-functional",
+    "localImagePath": "tests/fixtures/sample_floorplan.png",
+    "silhouettePath": "tests/fixtures/sample_floorplan.png"
+  }
+]

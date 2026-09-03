@@ -157,7 +157,20 @@ class ReplicateAdapter:
                 json.dump({"modelId": model_id, "input": sanitized_input}, f, indent=2)
 
         start_time = time.perf_counter()
-        response = self.client.run(model_id, input=provider_input)
+        last_error = None
+        response = None
+        for attempt in range(1, 4):
+            try:
+                response = self.client.run(model_id, input=provider_input)
+                break
+            except Exception as exc:
+                last_error = exc
+                if attempt < 3:
+                    time.sleep(2 ** attempt)
+
+        if response is None:
+            raise RuntimeError(f"Replicate execution failed after 3 attempts: {last_error}") from last_error
+
         latency_ms = round((time.perf_counter() - start_time) * 1000)
 
         output_image_url = extract_output_image_url(response)
