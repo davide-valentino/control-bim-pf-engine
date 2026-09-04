@@ -178,7 +178,7 @@ cp .env.local.example .env.local
 # Edit .env.local with your REPLICATE_API_TOKEN
 
 # 3. Launch API server
-poetry run uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+poetry run python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Option B: Docker Containerization
