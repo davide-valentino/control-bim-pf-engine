@@ -1,4 +1,4 @@
-"""Simple token-based authentication dependency for the pf-engine API."""
+"""Simple token-based authentication dependency for the control-bim-pf-engine API."""
 import os
 from fastapi import Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

@@ -1,12 +1,12 @@
-# Pre-Feasibility Engine (`pf-engine`) Local POC & REST API
+# Pre-Feasibility Engine (`control-bim-pf-engine`) Local POC & REST API
 
-This document describes the architecture, setup, configuration, and API contract for the **Pre-Feasibility Engine (`pf-engine`)** backend microservice.
+This document describes the architecture, setup, configuration, and API contract for the **Pre-Feasibility Engine (`control-bim-pf-engine`)** backend microservice.
 
 ---
 
 ## 1. Architectural Overview
 
-`pf-engine` provides a high-performance, containerized backend API that decouples front-end user interfaces from the computational and generative engines:
+`control-bim-pf-engine` provides a high-performance, containerized backend API that decouples front-end user interfaces from the computational and generative engines:
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -48,7 +48,7 @@ Base URL: `http://localhost:8000`
 {
   "status": "ok",
   "version": "0.1.0",
-  "service": "pf-engine",
+  "service": "control-bim-pf-engine",
   "replicateTokenConfigured": true,
   "replicateDepthModel": "lucataco/sdxl-controlnet-depth:465fb417...",
   "replicateCannyModel": "jagilley/controlnet-canny:aff48af9...",
@@ -197,7 +197,7 @@ curl -s http://localhost:8000/health | jq
 
 ## 4. Front-End Integration Guidelines
 
-Front-end teams (React, Vite, Vue, Next.js) can connect directly to `pf-engine`:
+Front-end teams (React, Vite, Vue, Next.js) can connect directly to `control-bim-pf-engine`:
 
 1. **Submit Job**: Call `POST /api/v1/submit` with chosen image / sketch and style preset.
 2. **Poll Status**: Poll `GET /api/v1/status/{runId}` every 1–2 seconds to show a loading spinner and log messages.

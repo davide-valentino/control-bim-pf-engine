@@ -1,4 +1,4 @@
-"""FastAPI application for the Pre-Feasibility Engine (pf-engine) backend service."""
+"""FastAPI application for the Pre-Feasibility Engine (control-bim-pf-engine) backend service."""
 import mimetypes
 import os
 from datetime import datetime, timezone
@@ -24,7 +24,7 @@ from src.api.schemas import (
 
 # Initialize FastAPI application
 app = FastAPI(
-    title="Pre-Feasibility Engine (pf-engine) API",
+    title="Pre-Feasibility Engine (control-bim-pf-engine) API",
     description="Deterministic CAD-to-BOM costing & ControlNet visual restyling microservice.",
     version="0.1.0",
     docs_url="/docs",
@@ -52,7 +52,7 @@ def index():
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>Pre-Feasibility Engine (pf-engine)</title>
+        <title>Pre-Feasibility Engine (control-bim-pf-engine)</title>
         <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 860px; margin: 40px auto; padding: 20px; line-height: 1.6; color: #1e293b; background: #f8fafc; }
             h1 { color: #0f172a; margin-bottom: 4px; }
@@ -66,7 +66,7 @@ def index():
     </head>
     <body>
         <h1>Pre-Feasibility Engine API</h1>
-        <div class="badge">pf-engine v0.1.0 • Ready</div>
+        <div class="badge">control-bim-pf-engine v0.1.0 • Ready</div>
         <div class="card">
             <h3>Overview</h3>
             <p>High-performance backend engine unifying <strong>deterministic CAD-to-BOM costing</strong> with <strong>spatially-locked ControlNet generative restyling</strong>.</p>
@@ -97,7 +97,7 @@ def health():
     return HealthResponse(
         status="ok",
         version="0.1.0",
-        service="pf-engine",
+        service="control-bim-pf-engine",
         replicateTokenConfigured=bool(replicate_token and len(replicate_token) > 5),
         replicateDepthModel=os.getenv(
             "REPLICATE_CONTROLNET_DEPTH_MODEL",

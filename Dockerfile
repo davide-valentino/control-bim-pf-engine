@@ -1,4 +1,4 @@
-# Pre-Feasibility Engine (pf-engine) Dockerfile
+# Pre-Feasibility Engine (control-bim-pf-engine) Dockerfile
 FROM python:3.12-slim
 
 # Set environment variables

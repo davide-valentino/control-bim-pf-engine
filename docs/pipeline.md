@@ -1,4 +1,4 @@
-# DXF to BIM & BOM Pipeline Architecture (`pf-engine`)
+# DXF to BIM & BOM Pipeline Architecture (`control-bim-pf-engine`)
 
 This document describes the modular architecture of the **Pre-Feasibility Engine (DXF to BIM & BOM)** pipeline.
 
@@ -7,7 +7,7 @@ This document describes the modular architecture of the **Pre-Feasibility Engine
 ## 🗂️ Directory Structure
 
 ```
-pf-engine/
+control-bim-pf-engine/
 │
 ├── pyproject.toml              # Dependencies & pytest configuration
 ├── poetry.lock

@@ -1,1 +1,1 @@
-"""Pre-Feasibility Engine (pf-engine) API package."""
+"""Pre-Feasibility Engine (control-bim-pf-engine) API package."""

@@ -1,4 +1,4 @@
-"""In-process background job manager and state store for pf-engine."""
+"""In-process background job manager and state store for control-bim-pf-engine."""
 import concurrent.futures
 import hashlib
 import io

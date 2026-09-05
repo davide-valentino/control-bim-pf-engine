@@ -1,9 +1,9 @@
 services:
-  pf-engine:
+  control-bim-pf-engine:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pf-engine-api
+    container_name: control-bim-pf-engine-api
     restart: unless-stopped
     ports:
       - "8000:8000"

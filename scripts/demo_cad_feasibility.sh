@@ -9,7 +9,7 @@ STYLE="${3:-luxury-minimal}"
 DRY_RUN="${4:-true}"
 
 echo "========================================================"
-echo "  pf-engine API Demo: End-to-End CAD Pre-Feasibility"
+echo "  control-bim-pf-engine API Demo: End-to-End CAD Pre-Feasibility"
 echo "========================================================"
 echo "API URL:      $API_URL"
 echo "DXF File:     $DXF_PATH"

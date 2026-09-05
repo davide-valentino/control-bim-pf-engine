@@ -1,6 +1,6 @@
-# Deterministic ControlNet Evaluation Path (`pf-engine`)
+# Deterministic ControlNet Evaluation Path (`control-bim-pf-engine`)
 
-This document describes the architecture, setup, configuration, and execution of the deterministic ControlNet evaluation path in `pf-engine`.
+This document describes the architecture, setup, configuration, and execution of the deterministic ControlNet evaluation path in `control-bim-pf-engine`.
 
 ---
 

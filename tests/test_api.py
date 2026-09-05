@@ -1,4 +1,4 @@
-"""Integration and unit tests for the pf-engine REST API."""
+"""Integration and unit tests for the control-bim-pf-engine REST API."""
 import os
 import time
 import pytest
@@ -16,7 +16,7 @@ def test_health_endpoints():
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "ok"
-        assert data["service"] == "pf-engine"
+        assert data["service"] == "control-bim-pf-engine"
         assert "replicateTokenConfigured" in data
         assert "activeWorkers" in data
 

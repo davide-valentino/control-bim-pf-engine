@@ -1,4 +1,4 @@
-"""Pydantic schemas for the Pre-Feasibility Engine (pf-engine) REST API."""
+"""Pydantic schemas for the Pre-Feasibility Engine (control-bim-pf-engine) REST API."""
 from typing import Any, Literal
 from pydantic import BaseModel, Field
 
@@ -122,7 +122,7 @@ class ArtifactListResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "0.1.0"
-    service: str = "pf-engine"
+    service: str = "control-bim-pf-engine"
     replicateTokenConfigured: bool
     replicateDepthModel: str
     replicateCannyModel: str

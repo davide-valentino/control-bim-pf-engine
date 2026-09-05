@@ -1,11 +1,11 @@
-# Pre-Feasibility Engine (`pf-engine`)
+# Pre-Feasibility Engine (`control-bim-pf-engine`)
 
-[![CI](https://github.com/davide/pf-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/davide/pf-engine/actions/workflows/ci.yml)
+[![CI](https://github.com/davide-valentino/control-bim-pf-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/davide-valentino/control-bim-pf-engine/actions/workflows/ci.yml)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 
-**Pre-Feasibility Engine (`pf-engine`)** is a high-performance backend microservice combining **deterministic CAD-to-BOM costing** with **spatially-locked ControlNet generative restyling**. 
+**Pre-Feasibility Engine (`control-bim-pf-engine`)** is a high-performance backend microservice combining **deterministic CAD-to-BOM costing** with **spatially-locked ControlNet generative restyling**. 
 
 It enables property developers, local Indonesian architects, and international investors to convert 2D CAD floorplans or site sketches into photorealistic, structurally validated architectural concepts and preliminary financial estimates in seconds.
 
@@ -26,8 +26,8 @@ It enables property developers, local Indonesian architects, and international i
 ### Option 1: Docker (Recommended)
 ```bash
 # 1. Clone repository
-git clone https://github.com/davide/pf-engine.git
-cd pf-engine
+git clone git@github.com:davide-valentino/control-bim-pf-engine.git
+cd control-bim-pf-engine
 
 # 2. Configure credentials
 cp .env.local.example .env.local

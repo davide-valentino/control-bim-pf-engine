@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Submit a case to the pf-engine API and poll status to completion
+# Submit a case to the control-bim-pf-engine API and poll status to completion
 set -euo pipefail
 
 API_URL="${API_URL:-http://localhost:8000}"
@@ -9,7 +9,7 @@ STYLE="${3:-tropical-boutique}"
 DRY_RUN="${4:-false}"
 
 echo "========================================================"
-echo "  pf-engine API Demo Client: Submit & Poll"
+echo "  control-bim-pf-engine API Demo Client: Submit & Poll"
 echo "========================================================"
 echo "Target API:   $API_URL"
 echo "Case ID:      $CASE_ID"

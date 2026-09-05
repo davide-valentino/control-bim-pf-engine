@@ -1,6 +1,6 @@
 # Minimal Front-End Integration Stub (React / Vite)
 
-This guide provides a minimal React component demonstrating how a front-end client communicates with the `pf-engine` API.
+This guide provides a minimal React component demonstrating how a front-end client communicates with the `control-bim-pf-engine` API.
 
 ---
 
@@ -63,7 +63,7 @@ export default function FeasibilityStudio() {
 
   return (
     <div style={{ maxWidth: 800, margin: '40px auto', fontFamily: 'sans-serif' }}>
-      <h2>Pre-Feasibility Studio (pf-engine)</h2>
+      <h2>Pre-Feasibility Studio (control-bim-pf-engine)</h2>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <select value={inputType} onChange={(e) => setInputType(e.target.value)}>
