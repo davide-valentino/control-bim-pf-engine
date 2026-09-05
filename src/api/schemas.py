@@ -65,6 +65,15 @@ class CadFeasibilityRequest(BaseModel):
     targetStyle: str = Field(
         default="luxury-minimal", description="ControlNet visual restyling style"
     )
+    inputType: Literal["interior", "floorplan", "facade"] = Field(
+        default="interior", description="ControlNet conditioning input type (interior, floorplan, facade)"
+    )
+    roomId: int | None = Field(
+        default=None, description="Optional room_id to focus on for interior rendering (defaults to first room)"
+    )
+    overrides: dict[str, Any] | None = Field(
+        default=None, description="Optional model parameter overrides"
+    )
     dryRun: bool = Field(
         default=False, description="If true, generates CAD BOM and mock visual render offline"
     )

@@ -101,6 +101,8 @@ def test_cad_feasibility_pipeline_endpoint():
         "dxfPath": "simple_room.dxf",
         "preset": "Luxury Minimal",
         "targetStyle": "luxury-minimal",
+        "inputType": "interior",
+        "roomId": 1,
         "dryRun": True,
     }
     resp = client.post("/api/v1/cad/feasibility", json=payload)
@@ -118,6 +120,32 @@ def test_cad_feasibility_pipeline_endpoint():
     assert status_data["status"] == "done"
     assert "report.json" in status_data["artifactPaths"]
     assert "visualization.svg" in status_data["artifactPaths"]
+    assert "cad_room_1_silhouette.png" in status_data["artifactPaths"]
+    assert status_data["iou"] is not None
+
+
+def test_cad_feasibility_pipeline_floorplan_endpoint():
+    """Verify CAD feasibility with floorplan input type."""
+    payload = {
+        "dxfPath": "simple_room.dxf",
+        "preset": "Rustic",
+        "targetStyle": "tropical-boutique",
+        "inputType": "floorplan",
+        "dryRun": True,
+    }
+    resp = client.post("/api/v1/cad/feasibility", json=payload)
+    assert resp.status_code == 202
+    run_id = resp.json()["runId"]
+
+    for _ in range(15):
+        time.sleep(0.3)
+        status_resp = client.get(f"/api/v1/status/{run_id}")
+        if status_resp.json()["status"] == "done":
+            break
+
+    status_data = status_resp.json()
+    assert status_data["status"] == "done"
+    assert "cad_silhouette.png" in status_data["artifactPaths"]
 
 
 def test_auth_protection(monkeypatch):

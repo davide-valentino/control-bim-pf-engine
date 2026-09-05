@@ -7,6 +7,7 @@ DXF_PATH="${1:-simple_room.dxf}"
 PRESET="${2:-Luxury Minimal}"
 STYLE="${3:-luxury-minimal}"
 DRY_RUN="${4:-true}"
+INPUT_TYPE="${5:-interior}"
 
 echo "========================================================"
 echo "  control-bim-pf-engine API Demo: End-to-End CAD Pre-Feasibility"
@@ -15,6 +16,7 @@ echo "API URL:      $API_URL"
 echo "DXF File:     $DXF_PATH"
 echo "BOM Preset:   $PRESET"
 echo "Visual Style: $STYLE"
+echo "Input Type:   $INPUT_TYPE"
 echo "Dry Run:      $DRY_RUN"
 echo ""
 
@@ -23,6 +25,7 @@ PAYLOAD=$(cat <<EOF
   "dxfPath": "$DXF_PATH",
   "preset": "$PRESET",
   "targetStyle": "$STYLE",
+  "inputType": "$INPUT_TYPE",
   "dryRun": $DRY_RUN
 }
 EOF

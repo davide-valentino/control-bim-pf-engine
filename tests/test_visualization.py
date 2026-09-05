@@ -45,3 +45,46 @@ def test_visualization_svg_generation():
     assert "12.0 m²" in svg_content, "Missing 12.0 m² area text"
     assert "polygon" in svg_content, "Missing polygon elements"
     assert "line" in svg_content, "Missing door line element"
+
+
+def test_visualization_svg_generation_single_room():
+    from src.visualization import export_silhouette_mask
+    test_data = {
+        "rooms": [
+            {
+                "room_id": 1,
+                "name": "Living Room",
+                "boundary": [
+                    [0.0, 0.0],
+                    [5000.0, 0.0],
+                    [5000.0, 4000.0],
+                    [0.0, 4000.0],
+                    [0.0, 0.0]
+                ]
+            },
+            {
+                "room_id": 2,
+                "name": "Kitchen / Dining",
+                "boundary": [
+                    [5000.0, 0.0],
+                    [8000.0, 0.0],
+                    [8000.0, 4000.0],
+                    [5000.0, 4000.0],
+                    [5000.0, 0.0]
+                ]
+            }
+        ],
+        "doors": [
+            {"start": [1000.0, 0.0], "end": [1900.0, 0.0]}
+        ]
+    }
+    output_path = ".output/test_room1.svg"
+    svg_content = generate_svg(test_data, output_path, room_id=1)
+
+    assert os.path.exists(output_path), "Room SVG output file was not created"
+    assert "Living Room" in svg_content, "Missing Living Room label"
+    assert "Kitchen / Dining" not in svg_content, "Kitchen / Dining should not be in room 1 SVG"
+
+    mask_path = ".output/test_room1_mask.png"
+    export_silhouette_mask(output_path, mask_path, room_id=1, semantic_data=test_data)
+    assert os.path.exists(mask_path), "Mask was not generated"

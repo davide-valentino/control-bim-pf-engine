@@ -403,7 +403,7 @@ class JobManager:
             from src.pipeline.materials import run_material_assignment
             from src.pipeline.costing import run_cost_estimation
             from src.summary import generate_summary
-            from src.visualization import generate_svg
+            from src.visualization import generate_svg, export_silhouette_mask
 
             raw_geom_path = str(target_dir / "raw_geometry.json")
             parse_dxf(req.dxfPath, raw_geom_path)
@@ -444,25 +444,59 @@ class JobManager:
             generate_svg(semantic_data, svg_path)
             self._jobs[run_id]["progress"] = 0.85
 
-            # Trigger ControlNet visual restyling from SVG
-            self._append_log(run_id, f"6. Synthesizing visual concept with ControlNet style: {req.targetStyle}")
+            # Dynamic conditioning image extraction from semantic CAD geometry
+            input_type = req.inputType or "interior"
+            room_id = req.roomId
+            if input_type == "interior":
+                if room_id is None and semantic_data.get("rooms"):
+                    room_id = semantic_data["rooms"][0].get("room_id")
+                cad_sil_path = str(target_dir / f"cad_room_{room_id or 1}_silhouette.png")
+                export_silhouette_mask(svg_path, cad_sil_path, room_id=room_id, semantic_data=semantic_data)
+            else:
+                cad_sil_path = str(target_dir / "cad_silhouette.png")
+                export_silhouette_mask(svg_path, cad_sil_path)
+
+            # Trigger ControlNet visual restyling from dynamic CAD conditioning
+            self._append_log(run_id, f"6. Synthesizing visual concept with ControlNet style: {req.targetStyle} (modality: {input_type})")
+            case_id = f"cad-{req.targetStyle}"
             dxf_submit_case = SubmitCaseRequest(
-                caseId=f"cad-{req.targetStyle}",
-                inputType="floorplan",
+                caseId=case_id,
+                inputType=input_type,
                 targetStyle=req.targetStyle,
-                localImagePath="tests/fixtures/sample_floorplan.png",
+                localImagePath=cad_sil_path,
+                overrides=req.overrides,
                 dryRun=req.dryRun,
             )
-            self._execute_dry_run(run_id, dxf_submit_case, target_dir) if req.dryRun else execute_evaluation(
-                cases=[EvalPayload(
-                    caseId=f"cad-{req.targetStyle}",
-                    inputType="floorplan",
-                    targetStyle=req.targetStyle,
-                    localImagePath="tests/fixtures/sample_floorplan.png",
-                )],
-                provider="replicate",
-                output_dir=target_dir,
-            )
+            if req.dryRun:
+                dry_res = self._execute_dry_run(run_id, dxf_submit_case, target_dir)
+                run_obj = dry_res["runs"][0]
+                with self._lock:
+                    self._jobs[run_id]["latencyMs"] = run_obj.get("latencyMs")
+                    self._jobs[run_id]["iou"] = run_obj.get("iou")
+                    self._jobs[run_id]["tier"] = run_obj.get("tier")
+                    self._jobs[run_id]["imageHash_SHA256"] = run_obj.get("imageHash_SHA256")
+                    self._jobs[run_id]["seed"] = run_obj.get("seed")
+            else:
+                eval_res = execute_evaluation(
+                    cases=[EvalPayload(
+                        caseId=case_id,
+                        inputType=input_type,
+                        targetStyle=req.targetStyle,
+                        localImagePath=cad_sil_path,
+                    )],
+                    provider="replicate",
+                    replicate_overrides=req.overrides,
+                    output_dir=target_dir,
+                )
+                runs_list = eval_res.get("runs", [])
+                if runs_list:
+                    r0 = runs_list[0]
+                    with self._lock:
+                        self._jobs[run_id]["latencyMs"] = r0.get("latencyMs")
+                        self._jobs[run_id]["iou"] = r0.get("iou")
+                        self._jobs[run_id]["tier"] = r0.get("status")
+                        self._jobs[run_id]["imageHash_SHA256"] = r0.get("imageHash_SHA256")
+                        self._jobs[run_id]["seed"] = r0.get("seed")
 
             artifact_paths = {}
             for path in target_dir.glob("*"):

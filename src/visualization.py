@@ -9,23 +9,24 @@ from PIL import Image
 from src.geometry import polygon_centroid
 
 
-def generate_svg(data, output_path=".output/visualization.svg"):
-    """Generate a clean 2D SVG floorplan overlay from semantic room and door data."""
+def generate_svg(data, output_path=".output/visualization.svg", room_id=None):
+    """Generate a clean 2D SVG floorplan overlay from semantic room and door data.
+    
+    If room_id is specified, only that room polygon, its relevant doors, and its label
+    will be rendered with tight bounding-box padding.
+    """
     rooms = data.get("rooms", [])
     doors = data.get("doors", [])
+
+    if room_id is not None:
+        filtered_rooms = [r for r in rooms if r.get("room_id") == room_id]
+        if filtered_rooms:
+            rooms = filtered_rooms
 
     all_points = []
     for room in rooms:
         for pt in room.get("boundary", []):
             all_points.append(pt)
-    for door in doors:
-        if isinstance(door, dict):
-            if "start" in door and "end" in door:
-                all_points.append(door["start"])
-                all_points.append(door["end"])
-            elif "geometry" in door:
-                all_points.append(door["geometry"]["start"])
-                all_points.append(door["geometry"]["end"])
 
     if not all_points:
         min_x, min_y, max_x, max_y = 0, 0, 1000, 1000
@@ -35,11 +36,27 @@ def generate_svg(data, output_path=".output/visualization.svg"):
         max_x = max(p[0] for p in all_points)
         max_y = max(p[1] for p in all_points)
 
-    padding = max(500.0, (max_x - min_x) * 0.1, (max_y - min_y) * 0.1)
+    if room_id is not None:
+        padding = max(150.0, (max_x - min_x) * 0.06, (max_y - min_y) * 0.06)
+    else:
+        padding = max(500.0, (max_x - min_x) * 0.1, (max_y - min_y) * 0.1)
+
     view_min_x = min_x - padding
     view_min_y = min_y - padding
     view_width = max(100.0, (max_x - min_x) + 2 * padding)
     view_height = max(100.0, (max_y - min_y) + 2 * padding)
+
+    # Filter doors to those within the bounding box
+    relevant_doors = []
+    for door in doors:
+        if isinstance(door, dict):
+            geom = door.get("geometry", door)
+            start = geom.get("start")
+            end = geom.get("end")
+            if start and end:
+                if (min_x - padding <= start[0] <= max_x + padding and min_y - padding <= start[1] <= max_y + padding) or \
+                   (min_x - padding <= end[0] <= max_x + padding and min_y - padding <= end[1] <= max_y + padding):
+                    relevant_doors.append(door)
 
     palette = ["#e8f4f8", "#fef3c7", "#e0e7ff", "#dcfce7", "#fce7f3", "#f3e8ff"]
 
@@ -66,15 +83,14 @@ def generate_svg(data, output_path=".output/visualization.svg"):
     svg_parts.append('  </g>')
     svg_parts.append('  <g id="doors">')
 
-    for door in doors:
-        if isinstance(door, dict):
-            geom = door.get("geometry", door)
-            start = geom.get("start")
-            end = geom.get("end")
-            if start and end:
-                svg_parts.append(
-                    f'    <line x1="{start[0]}" y1="{start[1]}" x2="{end[0]}" y2="{end[1]}" stroke="#ef4444" stroke-width="60" stroke-linecap="round"/>'
-                )
+    for door in relevant_doors:
+        geom = door.get("geometry", door)
+        start = geom.get("start")
+        end = geom.get("end")
+        if start and end:
+            svg_parts.append(
+                f'    <line x1="{start[0]}" y1="{start[1]}" x2="{end[0]}" y2="{end[1]}" stroke="#ef4444" stroke-width="60" stroke-linecap="round"/>'
+            )
 
     svg_parts.append('  </g>')
     svg_parts.append('  <g id="labels">')
@@ -103,15 +119,30 @@ def generate_svg(data, output_path=".output/visualization.svg"):
     svg_parts.append('</svg>')
 
     svg_content = "\n".join(svg_parts)
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "w") as f:
-        f.write(svg_content)
+    if output_path:
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with open(output_path, "w") as f:
+            f.write(svg_content)
     return svg_content
 
 
-def export_silhouette_mask(svg_path, out_mask_path, size=(1024, 1024)):
-    """Rasterize an SVG and save non-background geometry as a binary PNG mask."""
-    png_data = cairosvg.svg2png(url=svg_path, output_width=size[0], output_height=size[1])
+def export_silhouette_mask(
+    svg_source,
+    out_mask_path,
+    size=(1024, 1024),
+    room_id=None,
+    semantic_data=None,
+):
+    """Rasterize an SVG or semantic data dictionary and save non-background geometry as a binary PNG mask."""
+    if semantic_data is not None or isinstance(svg_source, dict):
+        data = semantic_data or svg_source
+        svg_content = generate_svg(data, output_path=None, room_id=room_id)
+        png_data = cairosvg.svg2png(bytestring=svg_content.encode("utf-8"), output_width=size[0], output_height=size[1])
+    elif isinstance(svg_source, str) and ("<svg" in svg_source):
+        png_data = cairosvg.svg2png(bytestring=svg_source.encode("utf-8"), output_width=size[0], output_height=size[1])
+    else:
+        png_data = cairosvg.svg2png(url=svg_source, output_width=size[0], output_height=size[1])
+
     image = Image.open(io.BytesIO(png_data))
     arr = np.asarray(image)
     if arr.ndim == 3 and arr.shape[2] == 4:

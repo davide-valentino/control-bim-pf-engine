@@ -38,7 +38,9 @@ FLOORPLAN_PROMPT_PREFIX = (
     "circulation logic, and structural layout scale"
 )
 INTERIOR_PROMPT_PREFIX = (
-    "Architectural interior rendering, preserve room boundaries, natural daylight"
+    "Interior architectural photography, eye-level 35mm perspective, room-scale, photorealistic, "
+    "preserve room boundaries, natural daylight through floor-to-ceiling openings, detailed materials, "
+    "close-up interior perspective"
 )
 
 FACADE_NEGATIVE_PROMPT = (
@@ -51,7 +53,9 @@ FLOORPLAN_NEGATIVE_PROMPT = (
     "low quality, hand-drawn artifacts, extra windows"
 )
 INTERIOR_NEGATIVE_PROMPT = (
-    "furniture artifacts, distorted walls, warped architecture, low quality, noise, exterior leakage"
+    "floorplan, blueprint, bird-eye view, aerial view, exterior view, facade, outside perspective, "
+    "white background, black border, furniture artifacts, distorted walls, warped architecture, "
+    "low quality, blurry textures, noise, exterior leakage"
 )
 
 
