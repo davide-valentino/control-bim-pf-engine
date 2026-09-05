@@ -5,6 +5,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
+
+_root_dir = Path(__file__).resolve().parents[2]
+if (_root_dir / ".env.local").is_file():
+    load_dotenv(_root_dir / ".env.local")
+if (_root_dir / ".env").is_file():
+    load_dotenv(_root_dir / ".env")
+
 from fastapi import Depends, FastAPI, HTTPException, Query, Security, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
