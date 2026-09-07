@@ -80,6 +80,34 @@ poetry run python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 
 ---
 
+## Example runs with curl requests
+
+Create a new CAD feasibility run:
+
+```sh
+curl -X POST "http://localhost:8000/api/v1/cad/feasibility" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "preset": "Luxury Minimal",
+    "targetStyle": "tropical-boutique",
+    "dxfPath": "RUMAH_RENOV.dxf",
+    "overrides": {
+      "seed": 424242,
+      "guidance_scale": 7.5,
+      "numInferenceSteps": 30
+    },
+    "dryRun": false
+  }'
+```
+
+Check the status of the run using the returned `runId`:
+
+```sh
+curl "http://localhost:8000/api/v1/status/{runId}"
+```
+
+---
+
 ## 📚 Documentation
 * [REST API & POC Runbook](docs/POC_README.md)
 * [ControlNet Evaluation & Gating Guide](docs/CONTROLNET_INTEGRATION.md)
