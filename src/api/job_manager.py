@@ -267,64 +267,76 @@ class JobManager:
                 self._jobs[run_id]["updatedAt"] = datetime.now(timezone.utc).isoformat()
                 self._persist_job(run_id)
 
-    def _execute_dry_run(self, run_id: str, req: SubmitCaseRequest, target_dir: Path) -> dict:
+    def _execute_dry_run(
+        self,
+        run_id: str,
+        req: SubmitCaseRequest | list[SubmitCaseRequest],
+        target_dir: Path,
+    ) -> dict:
         """Simulate an offline render with real image artifacts and deterministic IoU."""
-        self._append_log(run_id, "[Dry Run] Generating mock conditioning maps and diffusion render...")
-        src_path = req.localImagePath or f"tests/fixtures/sample_{req.inputType}.png"
-        src_file = Path(src_path)
-        if not src_file.exists():
-            # Create a blank fallback canvas
-            img = Image.new("RGB", (768, 768), color=(240, 240, 240))
-            draw = ImageDraw.Draw(img)
-            draw.rectangle([100, 100, 668, 668], outline=(0, 0, 0), width=8)
-            src_file = target_dir / "fallback_input.png"
-            img.save(src_file)
+        cases = req if isinstance(req, list) else [req]
+        self._append_log(
+            run_id,
+            f"[Dry Run] Generating mock conditioning maps and diffusion render for {len(cases)} case(s)...",
+        )
+        run_objs = []
+        for case_req in cases:
+            src_path = case_req.localImagePath or f"tests/fixtures/sample_{case_req.inputType}.png"
+            src_file = Path(src_path)
+            if not src_file.exists():
+                # Create a blank fallback canvas
+                img = Image.new("RGB", (768, 768), color=(240, 240, 240))
+                draw = ImageDraw.Draw(img)
+                draw.rectangle([100, 100, 668, 668], outline=(0, 0, 0), width=8)
+                src_file = target_dir / f"fallback_{case_req.caseId}.png"
+                img.save(src_file)
 
-        # Save silhouette mask
-        sil_path = target_dir / f"silhouette-mask-{req.caseId}.png"
-        save_binary_mask(str(src_file), sil_path)
+            # Save silhouette mask
+            sil_path = target_dir / f"silhouette-mask-{case_req.caseId}.png"
+            save_binary_mask(str(src_file), sil_path)
 
-        # Save control map and mask
-        ctrl_path = target_dir / f"controlmap-{req.caseId}-run1.png"
-        mask_path = target_dir / f"controlmap-mask-{req.caseId}-run1.png"
-        generate_control_map(str(src_file), str(ctrl_path), input_type=req.inputType)
-        save_control_map_and_mask(str(ctrl_path), str(ctrl_path), str(mask_path))
+            # Save control map and mask
+            ctrl_path = target_dir / f"controlmap-{case_req.caseId}-run1.png"
+            mask_path = target_dir / f"controlmap-mask-{case_req.caseId}-run1.png"
+            generate_control_map(str(src_file), str(ctrl_path), input_type=case_req.inputType)
+            save_control_map_and_mask(str(ctrl_path), str(ctrl_path), str(mask_path))
 
-        # Create synthetic output render
-        out_img = Image.open(src_file).convert("RGB")
-        out_path = target_dir / f"output-{req.caseId}-run1.png"
-        out_img.save(out_path)
-        output_bytes = out_path.read_bytes()
-        sha256 = hashlib.sha256(output_bytes).hexdigest()
+            # Create synthetic output render
+            out_img = Image.open(src_file).convert("RGB")
+            out_path = target_dir / f"output-{case_req.caseId}-run1.png"
+            out_img.save(out_path)
+            output_bytes = out_path.read_bytes()
+            sha256 = hashlib.sha256(output_bytes).hexdigest()
 
-        iou = compute_iou(sil_path, mask_path)
+            iou = compute_iou(sil_path, mask_path)
 
-        run_obj = {
-            "caseId": req.caseId,
-            "runId": 1,
-            "inputType": req.inputType,
-            "targetStyle": req.targetStyle,
-            "modelId": "dry-run-mock-model",
-            "seed": 424242,
-            "latencyMs": 150.0,
-            "iou": round(float(iou), 4),
-            "tier": "pass",
-            "passed": True,
-            "imageHash_SHA256": sha256,
-            "outputImagePath": str(out_path),
-            "controlMapPath": str(ctrl_path),
-            "controlMapMaskPath": str(mask_path),
-            "silhouetteMaskPath": str(sil_path),
-        }
+            run_obj = {
+                "caseId": case_req.caseId,
+                "runId": 1,
+                "inputType": case_req.inputType,
+                "targetStyle": case_req.targetStyle,
+                "modelId": "dry-run-mock-model",
+                "seed": 424242,
+                "latencyMs": 150.0,
+                "iou": round(float(iou), 4),
+                "tier": "pass",
+                "passed": True,
+                "imageHash_SHA256": sha256,
+                "outputImagePath": str(out_path),
+                "controlMapPath": str(ctrl_path),
+                "controlMapMaskPath": str(mask_path),
+                "silhouetteMaskPath": str(sil_path),
+            }
+            run_objs.append(run_obj)
 
         runs_file = target_dir / "runs.json"
-        runs_file.write_text(json.dumps([run_obj], indent=2))
+        runs_file.write_text(json.dumps(run_objs, indent=2))
 
         summary_obj = {
-            "totalCases": 1,
+            "totalCases": len(cases),
             "runsPerCase": 1,
-            "totalRuns": 1,
-            "successRuns": 1,
+            "totalRuns": len(run_objs),
+            "successRuns": len(run_objs),
             "failedRuns": 0,
             "p50LatencyMs": 150.0,
             "p95LatencyMs": 150.0,
@@ -332,7 +344,7 @@ class JobManager:
         }
         (target_dir / "summary.json").write_text(json.dumps(summary_obj, indent=2))
 
-        return {"runs": [run_obj], "summary": summary_obj}
+        return {"runs": run_objs, "summary": summary_obj}
 
     def _run_replay_task(self, run_id: str, req: ReplayRequest) -> None:
         """Worker task for deterministic replay."""
@@ -444,46 +456,81 @@ class JobManager:
             generate_svg(semantic_data, svg_path)
             self._jobs[run_id]["progress"] = 0.85
 
-            # Dynamic conditioning image extraction from semantic CAD geometry
-            input_type = req.inputType or "interior"
-            room_id = req.roomId
-            if input_type == "interior":
-                if room_id is None and semantic_data.get("rooms"):
-                    room_id = semantic_data["rooms"][0].get("room_id")
-                cad_sil_path = str(target_dir / f"cad_room_{room_id or 1}_silhouette.png")
-                export_silhouette_mask(svg_path, cad_sil_path, room_id=room_id, semantic_data=semantic_data)
-            else:
-                cad_sil_path = str(target_dir / "cad_silhouette.png")
-                export_silhouette_mask(svg_path, cad_sil_path)
+            # Dynamic conditioning extraction: Main Concept + Per-Room Renders
+            rooms = semantic_data.get("rooms", [])
 
-            # Trigger ControlNet visual restyling from dynamic CAD conditioning
-            self._append_log(run_id, f"6. Synthesizing visual concept with ControlNet style: {req.targetStyle} (modality: {input_type})")
-            case_id = f"cad-{req.targetStyle}"
-            dxf_submit_case = SubmitCaseRequest(
-                caseId=case_id,
-                inputType=input_type,
-                targetStyle=req.targetStyle,
-                localImagePath=cad_sil_path,
-                overrides=req.overrides,
-                dryRun=req.dryRun,
+            # 1. Main Concept Render (Overall floorplan / massing)
+            cad_main_sil_path = str(target_dir / "cad_silhouette.png")
+            export_silhouette_mask(svg_path, cad_main_sil_path)
+
+            main_case_id = f"cad-{req.targetStyle}"
+            main_input_type = "floorplan" if len(rooms) > 1 else (req.inputType or "interior")
+
+            eval_cases = [
+                EvalPayload(
+                    caseId=main_case_id,
+                    inputType=main_input_type,
+                    targetStyle=req.targetStyle,
+                    localImagePath=cad_main_sil_path,
+                )
+            ]
+            submit_cases = [
+                SubmitCaseRequest(
+                    caseId=main_case_id,
+                    inputType=main_input_type,
+                    targetStyle=req.targetStyle,
+                    localImagePath=cad_main_sil_path,
+                    overrides=req.overrides,
+                    dryRun=req.dryRun,
+                )
+            ]
+
+            # 2. Per-Room Interior Renders (when rooms exist)
+            rooms_to_render = [r for r in rooms if req.roomId is None or r.get("room_id") == req.roomId]
+            for room in rooms_to_render:
+                r_id = room.get("room_id", 1)
+                room_sil_path = str(target_dir / f"cad_room_{r_id}_silhouette.png")
+                export_silhouette_mask(svg_path, room_sil_path, room_id=r_id, semantic_data=semantic_data)
+
+                room_case_id = f"cad-room-{r_id}"
+                eval_cases.append(
+                    EvalPayload(
+                        caseId=room_case_id,
+                        inputType="interior",
+                        targetStyle=req.targetStyle,
+                        localImagePath=room_sil_path,
+                    )
+                )
+                submit_cases.append(
+                    SubmitCaseRequest(
+                        caseId=room_case_id,
+                        inputType="interior",
+                        targetStyle=req.targetStyle,
+                        localImagePath=room_sil_path,
+                        overrides=req.overrides,
+                        dryRun=req.dryRun,
+                    )
+                )
+
+            self._append_log(
+                run_id,
+                f"6. Synthesizing visual concept and {len(rooms_to_render)} room render(s) with ControlNet style: {req.targetStyle}"
             )
+
             if req.dryRun:
-                dry_res = self._execute_dry_run(run_id, dxf_submit_case, target_dir)
-                run_obj = dry_res["runs"][0]
-                with self._lock:
-                    self._jobs[run_id]["latencyMs"] = run_obj.get("latencyMs")
-                    self._jobs[run_id]["iou"] = run_obj.get("iou")
-                    self._jobs[run_id]["tier"] = run_obj.get("tier")
-                    self._jobs[run_id]["imageHash_SHA256"] = run_obj.get("imageHash_SHA256")
-                    self._jobs[run_id]["seed"] = run_obj.get("seed")
+                dry_res = self._execute_dry_run(run_id, submit_cases, target_dir)
+                run_objs = dry_res.get("runs", [])
+                if run_objs:
+                    r0 = run_objs[0]
+                    with self._lock:
+                        self._jobs[run_id]["latencyMs"] = r0.get("latencyMs")
+                        self._jobs[run_id]["iou"] = r0.get("iou")
+                        self._jobs[run_id]["tier"] = r0.get("tier")
+                        self._jobs[run_id]["imageHash_SHA256"] = r0.get("imageHash_SHA256")
+                        self._jobs[run_id]["seed"] = r0.get("seed")
             else:
                 eval_res = execute_evaluation(
-                    cases=[EvalPayload(
-                        caseId=case_id,
-                        inputType=input_type,
-                        targetStyle=req.targetStyle,
-                        localImagePath=cad_sil_path,
-                    )],
+                    cases=eval_cases,
                     provider="replicate",
                     replicate_overrides=req.overrides,
                     output_dir=target_dir,
