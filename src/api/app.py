@@ -1,4 +1,5 @@
 """FastAPI application for the Pre-Feasibility Engine (control-bim-pf-engine) backend service."""
+import json
 import mimetypes
 import os
 from datetime import datetime, timezone
@@ -13,9 +14,10 @@ if (_root_dir / ".env.local").is_file():
 if (_root_dir / ".env").is_file():
     load_dotenv(_root_dir / ".env")
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Security, UploadFile, status
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Query, Security, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from pydantic import ValidationError
 
 from src.api.auth import verify_api_key
 from src.api.job_manager import JobManager
@@ -24,11 +26,25 @@ from src.api.schemas import (
     ArtifactListResponse,
     CadFeasibilityRequest,
     HealthResponse,
+    PresetDetailResponse,
+    PresetDisableResponse,
+    PresetListResponse,
+    PresetSummary,
+    PresetUploadResponse,
     ReplayRequest,
     RunStatusResponse,
     SubmitCaseRequest,
     SubmitResponse,
 )
+from src.presets.store import (
+    PresetBuiltinProtected,
+    PresetConflict,
+    PresetDisabled,
+    PresetNotFound,
+    PresetRecord,
+    PresetStore,
+)
+from src.presets.validation import PresetTooLargeError, PresetValidationError
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -50,6 +66,67 @@ app.add_middleware(
 
 # Initialize Job Manager singleton
 job_manager = JobManager(max_workers=2, artifacts_root="artifacts")
+
+# Initialize rate-sheet store singleton (persisted next to job artifacts)
+preset_store = PresetStore(root=job_manager.artifacts_root / "presets")
+
+
+def _preset_summary(record: PresetRecord) -> PresetSummary:
+    return PresetSummary(
+        presetId=record.preset_id,
+        name=record.name,
+        currency=record.currency,
+        asOf=record.as_of,
+        source=record.source,
+        origin=record.origin,
+        version=record.version,
+        roomTypes=record.room_types,
+        itemCount=record.item_count,
+        warnings=record.warnings,
+        createdAt=record.created_at,
+        disabled=record.disabled,
+    )
+
+
+def _preset_error(exc: Exception, not_found_status: int = status.HTTP_404_NOT_FOUND) -> HTTPException:
+    """Translate store/validation exceptions into HTTP responses."""
+    if isinstance(exc, PresetNotFound):
+        return HTTPException(status_code=not_found_status, detail=str(exc))
+    if isinstance(exc, (PresetConflict, PresetBuiltinProtected)):
+        return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    if isinstance(exc, PresetDisabled):
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    if isinstance(exc, PresetTooLargeError):
+        return HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc))
+    if isinstance(exc, PresetValidationError):
+        return HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=[{"loc": list(exc.loc), "msg": exc.message, "type": "value_error"}],
+        )
+    if isinstance(exc, ValidationError):
+        detail = [
+            {"loc": list(item.get("loc", ())), "msg": item.get("msg", ""), "type": item.get("type", "")}
+            for item in exc.errors()
+        ]
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail)
+    return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+def _save_preset(raw: object, name_override: str | None = None) -> PresetUploadResponse:
+    try:
+        record, created = preset_store.save(raw, name_override=name_override)
+    except (PresetNotFound, PresetConflict, PresetBuiltinProtected, PresetDisabled,
+            PresetTooLargeError, PresetValidationError, ValidationError) as exc:
+        raise _preset_error(exc) from exc
+    return PresetUploadResponse(created=created, **_preset_summary(record).model_dump())
+
+
+def _resolve_request_preset(preset_id: str | None, preset_name: str | None):
+    """Resolve a job's rate sheet, reporting bad references as 422."""
+    try:
+        return preset_store.resolve(preset_id=preset_id, name=preset_name)
+    except (PresetNotFound, PresetDisabled, PresetConflict) as exc:
+        raise _preset_error(exc, not_found_status=status.HTTP_422_UNPROCESSABLE_ENTITY) from exc
 
 
 @app.get("/", response_class=HTMLResponse, tags=["General"])
@@ -248,6 +325,105 @@ def replay_case(req: ReplayRequest):
 
 
 @app.post(
+    "/api/v1/presets",
+    response_model=PresetUploadResponse,
+    tags=["Rate Sheets"],
+    dependencies=[Depends(verify_api_key)],
+)
+def create_preset(payload: dict = Body(..., description="Rate sheet JSON")):
+    """Import a partner rate sheet from a JSON body.
+
+    Accepts either ``{name, metadata, rooms}`` or the engine's native
+    ``{presets: {<name>: ...}, metadata}`` envelope (one preset per upload).
+    Identical content is idempotent; changed content creates a new version.
+    """
+    if len(json.dumps(payload, ensure_ascii=False).encode("utf-8")) > preset_store.max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Rate sheet exceeds the {preset_store.max_bytes // 1024} KB limit.",
+        )
+    return _save_preset(payload)
+
+
+@app.post(
+    "/api/v1/presets/upload",
+    response_model=PresetUploadResponse,
+    tags=["Rate Sheets"],
+    dependencies=[Depends(verify_api_key)],
+)
+async def upload_preset(
+    file: UploadFile = File(..., description="Rate sheet JSON file"),
+    presetName: str | None = Form(None, description="Optional name override"),
+):
+    """Import a partner rate sheet from an uploaded JSON file."""
+    filename = Path(file.filename or "rates.json").name
+    if not filename.lower().endswith(".json"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .json rate sheets are supported.",
+        )
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded rate sheet is empty.",
+        )
+    if len(contents) > preset_store.max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Rate sheet exceeds the {preset_store.max_bytes // 1024} KB limit.",
+        )
+    try:
+        raw = json.loads(contents)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid JSON: {exc}",
+        ) from exc
+    return _save_preset(raw, name_override=presetName)
+
+
+@app.get("/api/v1/presets", response_model=PresetListResponse, tags=["Rate Sheets"])
+def list_presets():
+    """List built-in and uploaded rate sheets, including the exact version IDs."""
+    groups = preset_store.list_all()
+    return PresetListResponse(
+        builtin=[_preset_summary(record) for record in groups["builtin"]],
+        uploaded=[_preset_summary(record) for record in groups["uploaded"]],
+    )
+
+
+@app.get("/api/v1/presets/{presetId}", response_model=PresetDetailResponse, tags=["Rate Sheets"])
+def get_preset(presetId: str):
+    """Return one rate sheet's registry metadata and normalized document."""
+    try:
+        record, document = preset_store.detail(presetId)
+    except (PresetNotFound, PresetConflict) as exc:
+        raise _preset_error(exc) from exc
+    return PresetDetailResponse(
+        created=False,
+        document=document,
+        **_preset_summary(record).model_dump(),
+    )
+
+
+@app.delete(
+    "/api/v1/presets/{presetId}",
+    response_model=PresetDisableResponse,
+    tags=["Rate Sheets"],
+    dependencies=[Depends(verify_api_key)],
+)
+def disable_preset(presetId: str):
+    """Soft-disable an uploaded rate sheet. Built-in presets are read-only."""
+    try:
+        record = preset_store.disable(presetId)
+    except (PresetNotFound, PresetBuiltinProtected) as exc:
+        raise _preset_error(exc) from exc
+    return PresetDisableResponse(presetId=record.preset_id, name=record.name, disabled=True)
+
+
+@app.post(
     "/api/v1/cad/feasibility",
     response_model=SubmitResponse,
     status_code=status.HTTP_202_ACCEPTED,
@@ -256,7 +432,8 @@ def replay_case(req: ReplayRequest):
 )
 def run_cad_feasibility(req: CadFeasibilityRequest):
     """Run end-to-end DXF parsing, BOM material costing, and ControlNet visual generation."""
-    run_id = job_manager.submit_cad_feasibility_job(req)
+    resolved_preset = _resolve_request_preset(req.presetId, req.preset)
+    run_id = job_manager.submit_cad_feasibility_job(req, resolved_preset=resolved_preset)
     return SubmitResponse(
         runId=run_id,
         status="queued",
@@ -274,7 +451,8 @@ def run_cad_feasibility(req: CadFeasibilityRequest):
 )
 async def upload_cad_feasibility(
     file: UploadFile = File(..., description="DXF floorplan file"),
-    preset: str = Form("Luxury Minimal", description="BOM material catalog preset"),
+    preset: str | None = Form(None, description="BOM rate-sheet name"),
+    presetId: str | None = Form(None, description="Exact rate-sheet version ID"),
     targetStyle: str = Form("luxury-minimal", description="ControlNet visual restyling style"),
     inputType: Literal["interior", "floorplan", "facade"] = Form("interior"),
     roomId: int | None = Form(None, description="Optional room_id to focus the render on"),
@@ -287,6 +465,8 @@ async def upload_cad_feasibility(
     only accepts server-local paths. The uploaded file is stored under
     ``artifacts/uploads/`` and passed to the same job queue.
     """
+    resolved_preset = _resolve_request_preset(presetId, preset)
+
     filename = Path(file.filename or "upload.dxf").name
     if not filename.lower().endswith(".dxf"):
         raise HTTPException(
@@ -315,13 +495,14 @@ async def upload_cad_feasibility(
 
     run_id = job_manager.submit_cad_feasibility_job(CadFeasibilityRequest(
         dxfPath=str(dxf_path),
-        preset=preset,
+        preset=resolved_preset.name,
+        presetId=resolved_preset.preset_id,
         targetStyle=targetStyle,
         inputType=inputType,
         roomId=roomId,
         maxRoomRenders=maxRoomRenders,
         dryRun=dryRun,
-    ))
+    ), resolved_preset=resolved_preset)
     return SubmitResponse(
         runId=run_id,
         status="queued",

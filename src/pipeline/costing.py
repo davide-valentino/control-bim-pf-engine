@@ -40,6 +40,18 @@ def _room_component_material(room, key, fallback):
     return materials.get(key) or materials.get(key.rstrip("s")) or room.get("material") or fallback
 
 
+def _preset_block(metadata):
+    """Expose the exact rate-sheet identity used for this estimate."""
+    if not (metadata.get("preset_id") or metadata.get("preset_name")):
+        return None
+    return {
+        "id": metadata.get("preset_id"),
+        "name": metadata.get("preset_name"),
+        "version": metadata.get("preset_version"),
+        "origin": metadata.get("preset_origin"),
+    }
+
+
 def _opening_width_m(opening):
     """Opening width in metres from semantic metadata, with a documented fallback."""
     if isinstance(opening, dict):
@@ -134,6 +146,7 @@ def estimate_cost(data):
         "currency": metadata.get("currency", "USD"),
         "as_of": metadata.get("as_of"),
         "rate_source": metadata.get("source"),
+        "preset": _preset_block(metadata),
         "assumptions": {
             "wall_height_m": wall_height_m,
             "window_height_m": window_height_m,

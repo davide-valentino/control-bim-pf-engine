@@ -13,7 +13,7 @@ It enables property developers, local Indonesian architects, and international i
 
 ## 🚀 Key Features
 
-* **Deterministic CAD-to-BOM Engine**: Ingests `.dxf` drawings, automatically extracts walls and openings, performs ray-casting room classification, and computes a Bill of Materials (BOM) with explicit, auditable quantity rules — wall area = room perimeter × wall height, floor area = room boundary area, doors = clustered opening units, windows = opening width × assumed height. Material presets (*Luxury Minimal*, *Tropical-Boutique*, *Rustic*) supply rates that carry `currency`, `as_of`, and `source` metadata so placeholder numbers can never be mistaken for real firm rates.
+* **Deterministic CAD-to-BOM Engine**: Ingests `.dxf` drawings, automatically extracts walls and openings, performs ray-casting room classification, and computes a Bill of Materials (BOM) with explicit, auditable quantity rules — wall area = room perimeter × wall height, floor area = room boundary area, doors = clustered opening units, windows = opening width × assumed height. Material presets (*Luxury Minimal*, *Rustic*, *Industrial* — or an uploaded partner sheet) supply rates that carry `currency`, `as_of`, and `source` metadata so placeholder numbers can never be mistaken for real firm rates.
 * **Spatially-Locked Generative Restyling**: SDXL Depth and Canny ControlNet conditioning with automated **silhouette IoU gating of the rendered output** (`IOU_THRESHOLD`, default 0.85). The gate compares the input silhouette against the binarized composition of the generated image; the legacy input-vs-control-map score is retained as a `conditioningIou` diagnostic. See *Known limitations* below.
 * **Reproducible & Replayable**: Full SHA-256 hash tracking and seed recording guarantee bit-for-bit identical reproduction across design revisions.
 * **REST API & Job Queue**: Lightweight FastAPI service with an in-process thread pool queue, status polling, and zip artifact packaging for easy handoff to front-end teams (React, Vite, Next.js).
@@ -56,7 +56,7 @@ poetry run python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 
 ## ⚠️ Known Limitations & Data Provenance
 
-* **Rates are placeholders.** `src/pipeline/presets.json` contains benchmark numbers, **not** the partner firm's Indonesian rate sheet. The BOM output labels them via `rate_source` ("placeholder benchmark rates - NOT partner-firm rates"), `currency`, and `as_of`. Replace the preset values (or the `metadata` block) with the firm's IDR rates before quoting any client.
+* **Built-in rates are placeholders.** `src/pipeline/presets.json` contains benchmark numbers, **not** the partner firm's Indonesian rate sheet. The BOM labels them via `rate_source` ("placeholder benchmark rates - NOT partner-firm rates"), `currency`, and `as_of`. Import Aprianti's real sheet with `POST /api/v1/presets` (IDR supported); see [Partner Rate Sheets](docs/PRESET_RATES.md). Every job stores the exact sheet version it used in `artifacts/feasibility/<runId>/rates-snapshot.json`.
 * **Wall area is a gross approximation.** Walls are priced as room perimeter × wall height, so shared partition walls are counted once per adjoining room. No deduction for openings, structure, or finishes.
 * **Openings need layer separation for window pricing.** The parser clusters opening segments into units, but door/window classification relies on layer names (`door`/`pintu` vs `window`/`jendela`). Drawings that place both on a single layer (e.g. `DOOR___WINDOW`) are priced entirely as doors.
 * **Room seeding uses drawing text.** Annotation text inside a closed polygon can be picked up as a room label; plans with many notes may produce annotation-named "rooms".
@@ -76,8 +76,15 @@ poetry run python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 | `POST` | `/api/v1/replay` | Deterministically replay previous run by seed |
 | `POST` | `/api/v1/cad/feasibility` | End-to-end DXF to BOM costing + ControlNet render |
 | `POST` | `/api/v1/cad/feasibility/upload` | Multipart DXF upload -> end-to-end pre-feasibility job |
+| `POST` | `/api/v1/presets` | Import a partner rate sheet (JSON body) |
+| `POST` | `/api/v1/presets/upload` | Import a partner rate sheet (`.json` file) |
+| `GET` | `/api/v1/presets` | List built-in and uploaded rate sheets |
+| `GET` | `/api/v1/presets/{presetId}` | Inspect one rate-sheet version |
+| `DELETE` | `/api/v1/presets/{presetId}` | Soft-disable an uploaded rate sheet |
 
 Feasibility jobs cap per-room renders with `maxRoomRenders` (default `3`; `0` = BOM + main concept only) so a full-house CAD file does not trigger dozens of paid provider calls.
+
+Rate sheets are immutable and content-addressed (`presetId = <slug>-<sha256[:12]>`). Pass `presetId` to pin a job to an exact version; passing `preset` resolves built-in names first, then the newest enabled upload. See [docs/PRESET_RATES.md](docs/PRESET_RATES.md).
 
 ---
 
@@ -119,9 +126,24 @@ Check the status of the run using the returned `runId`:
 curl "http://localhost:8000/api/v1/status/{runId}"
 ```
 
+Import a partner rate sheet, then pin a job to that exact version:
+
+```sh
+curl -X POST "http://localhost:8000/api/v1/presets" \
+  -H "Content-Type: application/json" \
+  --data @tests/fixtures/idr_rate_sheet.json
+
+curl -X POST "http://localhost:8000/api/v1/cad/feasibility/upload" \
+  -F "file=@RUMAH_RENOV.dxf" \
+  -F "presetId=bali-2026-10-e2e6a95f2408" \
+  -F "maxRoomRenders=0" \
+  -F "dryRun=true"
+```
+
 ---
 
 ## 📚 Documentation
+* [Partner Rate Sheets & Immutable Pricing](docs/PRESET_RATES.md)
 * [REST API & POC Runbook](docs/POC_README.md)
 * [ControlNet Evaluation & Gating Guide](docs/CONTROLNET_INTEGRATION.md)
 * [CAD-to-BOM Pipeline Architecture](docs/pipeline.md)

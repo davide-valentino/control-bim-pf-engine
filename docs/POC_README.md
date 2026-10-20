@@ -21,6 +21,7 @@ This document describes the architecture, setup, configuration, and API contract
 │  - POST /api/v1/replay        - GET /api/v1/artifacts  │
 │  - POST /api/v1/cad/feasibility - GET /health          │
 │  - POST /api/v1/cad/feasibility/upload (multipart DXF) │
+│  - POST/GET /api/v1/presets   (immutable rate sheets)  │
 └───────────────────────────┬────────────────────────────┘
                             │ In-Process Worker Queue
                             ▼
@@ -152,11 +153,16 @@ Streams a compressed `.zip` archive containing the generated render, control edg
 ```json
 {
   "dxfPath": "simple_room.dxf",
-  "preset": "Luxury Minimal",
+  "presetId": "bali-2026-10-e2e6a95f2408",
   "targetStyle": "luxury-minimal",
   "dryRun": false
 }
 ```
+
+`presetId` pins the job to one immutable rate-sheet version. Alternatively,
+`preset` accepts a built-in name (`Luxury Minimal`, `Rustic`, `Industrial`) or
+the newest enabled uploaded sheet with that name. Import partner rates with
+`POST /api/v1/presets`; see [PRESET_RATES.md](PRESET_RATES.md).
 
 Executes:
 1. DXF parsing via `ezdxf`

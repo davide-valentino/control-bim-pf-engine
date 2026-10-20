@@ -66,40 +66,56 @@ def load_semantic(path=".output/semantic.json"):
 
 
 
+def _iter_room_types(preset_rooms):
+    """Yield (key, config) for component room entries, skipping ``aliases`` etc."""
+    for key, value in preset_rooms.items():
+        if isinstance(value, dict):
+            yield key, value
+
+
 def match_room_preset(room_name, preset_rooms):
-    """Match a room name to a preset room style using exact, compound, or fallback matching."""
+    """Match a room name to a preset room style using exact, alias, compound, or fallback matching."""
     if not preset_rooms:
         return {}
 
     # 1. Exact match
-    if room_name in preset_rooms:
+    if room_name in preset_rooms and isinstance(preset_rooms[room_name], dict):
         return preset_rooms[room_name]
 
     # 2. Case-insensitive exact match
     norm_room = room_name.strip().lower()
-    for key, val in preset_rooms.items():
+    for key, val in _iter_room_types(preset_rooms):
         if key.strip().lower() == norm_room:
             return val
 
     # 3. Compound room name matching (e.g., "Kitchen / Dining" -> check "Kitchen", "Dining")
     if "/" in room_name:
-        parts = [p.strip() for p in room_name.split("/")]
-        for part in parts:
-            part_lower = part.lower()
-            for key, val in preset_rooms.items():
-                if key.strip().lower() == part_lower:
-                    return val
+        parts = [p.strip().lower() for p in room_name.split("/")]
+        for key, val in _iter_room_types(preset_rooms):
+            if key.strip().lower() in parts:
+                return val
 
-    # 4. Keyword / Substring match
-    for key, val in preset_rooms.items():
+    # 4. Localized aliases (e.g. "Ruang Tamu" -> Living Room)
+    for _, val in _iter_room_types(preset_rooms):
+        aliases = val.get("aliases", [])
+        if not isinstance(aliases, list):
+            continue
+        for alias in aliases:
+            alias_norm = str(alias).strip().lower()
+            if alias_norm and (alias_norm in norm_room or norm_room in alias_norm):
+                return val
+
+    # 5. Keyword / Substring match
+    for key, val in _iter_room_types(preset_rooms):
         key_lower = key.strip().lower()
         if key_lower in norm_room or norm_room in key_lower:
             return val
 
-    # 5. Fallback to "Living Room" or first room preset
-    if "Living Room" in preset_rooms:
-        return preset_rooms["Living Room"]
-    return next(iter(preset_rooms.values()))
+    # 6. Fallback to "Living Room" or first room preset
+    for key, val in _iter_room_types(preset_rooms):
+        if key.strip().lower() == "living room":
+            return val
+    return next((val for _, val in _iter_room_types(preset_rooms)), {})
 
 
 def _normalize_material_entry(entry):
@@ -152,6 +168,10 @@ def assign_materials(data, preset=None, catalog=None, metadata=None):
 
             normalized_materials = {}
             for comp_key, comp_val in matched_style.items():
+                if comp_key not in ("walls", "floors", "doors", "windows"):
+                    continue
+                if not isinstance(comp_val, dict):
+                    continue
                 normalized_materials[comp_key] = _normalize_material_entry(comp_val)
 
             wall_mat = normalized_materials.get("walls") or normalized_materials.get("wall")
@@ -233,11 +253,19 @@ def assign_materials(data, preset=None, catalog=None, metadata=None):
     return {"rooms": enriched_rooms, "doors": enriched_doors, "metadata": metadata}
 
 
-def run_material_assignment(input_path=".output/semantic.json", output_path=".output/materials.json", preset=None, catalog_path=None):
-    """Execute material assignment stage."""
+def run_material_assignment(input_path=".output/semantic.json", output_path=".output/materials.json",
+                            preset=None, catalog_path=None, preset_identity=None):
+    """Execute material assignment stage.
+
+    ``preset_identity`` (id/name/version/origin) is merged into the persisted
+    metadata so every estimate can be traced back to an exact rate-sheet
+    version.
+    """
     data = load_semantic(input_path)
     catalog = load_presets(catalog_path) if catalog_path else STYLE_PRESETS
     metadata = load_catalog_metadata(catalog_path)
+    if preset_identity:
+        metadata = {**metadata, **preset_identity}
     enriched = assign_materials(data, preset=preset, catalog=catalog, metadata=metadata)
     if output_path:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)

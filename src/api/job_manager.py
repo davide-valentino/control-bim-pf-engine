@@ -24,6 +24,7 @@ from src.pipeline.debug_map import generate_control_map, save_control_map_and_ma
 from src.pipeline.evaluation_executor import execute_evaluation, replay_run
 from src.pipeline.image_io import normalize_source
 from src.pipeline.replicate_adapter import EvalPayload
+from src.presets.store import PresetStore, ResolvedPreset
 from tools.iou_checker import compute_iou, save_binary_mask
 
 
@@ -157,16 +158,31 @@ class JobManager:
         self.executor.submit(self._run_replay_task, run_id, req)
         return run_id
 
-    def submit_cad_feasibility_job(self, req: CadFeasibilityRequest) -> str:
+    def submit_cad_feasibility_job(
+        self,
+        req: CadFeasibilityRequest,
+        resolved_preset: ResolvedPreset | None = None,
+    ) -> str:
         """Queue end-to-end DXF to BOM & ControlNet restyling job."""
-        timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        if resolved_preset is None:
+            resolved_preset = PresetStore(self.artifacts_root / "presets").resolve(
+                preset_id=req.presetId, name=req.preset
+            )
+
+        timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         run_id = f"feasibility_{timestamp_str}"
         now = datetime.now(timezone.utc).isoformat()
 
         job_record = {
             "runId": run_id,
             "type": "cad_feasibility",
-            "preset": req.preset,
+            "preset": resolved_preset.name,
+            "presetId": resolved_preset.preset_id,
+            "presetVersion": resolved_preset.version,
+            "presetOrigin": resolved_preset.origin,
+            "currency": resolved_preset.currency,
+            "asOf": resolved_preset.as_of,
+            "rateSource": resolved_preset.source,
             "targetStyle": req.targetStyle,
             "status": "queued",
             "progress": 0.0,
@@ -187,7 +203,7 @@ class JobManager:
             self._jobs[run_id] = job_record
             self._persist_job(run_id)
 
-        self.executor.submit(self._run_cad_feasibility_task, run_id, req)
+        self.executor.submit(self._run_cad_feasibility_task, run_id, req, resolved_preset)
         return run_id
 
     # ---------------- Worker Implementations ----------------
@@ -398,8 +414,18 @@ class JobManager:
                 self._jobs[run_id]["updatedAt"] = datetime.now(timezone.utc).isoformat()
                 self._persist_job(run_id)
 
-    def _run_cad_feasibility_task(self, run_id: str, req: CadFeasibilityRequest) -> None:
+    def _run_cad_feasibility_task(
+        self,
+        run_id: str,
+        req: CadFeasibilityRequest,
+        resolved_preset: ResolvedPreset | None = None,
+    ) -> None:
         """Worker task for CAD parsing, BOM calculation, and visual render."""
+        if resolved_preset is None:
+            resolved_preset = PresetStore(self.artifacts_root / "presets").resolve(
+                preset_id=req.presetId, name=req.preset
+            )
+
         with self._lock:
             self._jobs[run_id]["status"] = "running"
             self._jobs[run_id]["progress"] = 0.1
@@ -426,9 +452,22 @@ class JobManager:
             classify_semantics(raw_geom_path, semantic_path)
             self._jobs[run_id]["progress"] = 0.40
 
-            self._append_log(run_id, f"3. Assigning material catalog preset: {req.preset}")
+            self._append_log(
+                run_id,
+                f"3. Assigning rate sheet '{resolved_preset.name}' "
+                f"({resolved_preset.preset_id}, {resolved_preset.currency})",
+            )
             materials_path = str(target_dir / "materials.json")
-            run_material_assignment(semantic_path, materials_path, preset=req.preset)
+            run_material_assignment(
+                semantic_path,
+                materials_path,
+                preset=resolved_preset.name,
+                catalog_path=str(resolved_preset.file_path) if resolved_preset.file_path else None,
+                preset_identity=resolved_preset.identity(),
+            )
+            # Snapshot the exact rate sheet with the job artifacts for auditability.
+            if resolved_preset.file_path and Path(resolved_preset.file_path).exists():
+                shutil.copyfile(resolved_preset.file_path, target_dir / "rates-snapshot.json")
             self._jobs[run_id]["progress"] = 0.55
 
             self._append_log(run_id, "4. Estimating BOM line-item costs and wall areas")

@@ -59,8 +59,16 @@ class CadFeasibilityRequest(BaseModel):
     dxfPath: str = Field(
         default="simple_room.dxf", description="Path to DXF file"
     )
-    preset: str = Field(
-        default="Luxury Minimal", description="BOM material catalog preset (Luxury Minimal, Rustic, Industrial)"
+    preset: str | None = Field(
+        default=None,
+        description=(
+            "BOM rate-sheet name. Built-in: 'Luxury Minimal', 'Rustic', 'Industrial'; "
+            "uploaded sheets resolve to their newest enabled version. Defaults to 'Luxury Minimal'."
+        ),
+    )
+    presetId: str | None = Field(
+        default=None,
+        description="Exact rate-sheet version ID (e.g. 'bali-2026-10-1a2b3c4d5e6f'). Takes precedence over 'preset'.",
     )
     targetStyle: str = Field(
         default="luxury-minimal", description="ControlNet visual restyling style"
@@ -145,3 +153,41 @@ class HealthResponse(BaseModel):
     activeWorkers: int
     pendingJobs: int
     completedJobs: int
+
+
+class PresetSummary(BaseModel):
+    """One rate sheet visible to the API."""
+    presetId: str = Field(..., description="Content-addressed preset ID")
+    name: str
+    currency: str
+    asOf: str
+    source: str
+    origin: Literal["builtin", "upload"]
+    version: str
+    roomTypes: list[str] = Field(default_factory=list)
+    itemCount: int = 0
+    warnings: list[str] = Field(default_factory=list)
+    createdAt: str | None = None
+    disabled: bool = False
+
+
+class PresetListResponse(BaseModel):
+    builtin: list[PresetSummary] = Field(default_factory=list)
+    uploaded: list[PresetSummary] = Field(default_factory=list)
+
+
+class PresetUploadResponse(PresetSummary):
+    """Result of importing a rate sheet."""
+    created: bool = Field(..., description="False when identical content already existed")
+
+
+class PresetDetailResponse(PresetUploadResponse):
+    document: dict[str, Any] = Field(
+        ..., description="Normalized rate sheet: {name, metadata, rooms}"
+    )
+
+
+class PresetDisableResponse(BaseModel):
+    presetId: str
+    name: str
+    disabled: bool = True

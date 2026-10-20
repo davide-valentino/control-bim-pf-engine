@@ -43,6 +43,7 @@ def generate_summary(report):
         "currency": costs.get("currency"),
         "as_of": costs.get("as_of"),
         "rate_source": costs.get("rate_source"),
+        "preset": costs.get("preset"),
         "materials_breakdown": breakdown,
         "rooms_breakdown": generate_rooms_breakdown(report),
     }

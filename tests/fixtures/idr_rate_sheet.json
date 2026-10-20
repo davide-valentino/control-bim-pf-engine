@@ -1,0 +1,29 @@
+{
+  "name": "Bali 2026-10",
+  "metadata": {
+    "currency": "IDR",
+    "as_of": "2026-10-01",
+    "source": "Aprianti Interiors - internal renovation rate sheet",
+    "note": "Pilot benchmark; confirm before quoting a client"
+  },
+  "rooms": {
+    "Living Room": {
+      "aliases": ["Ruang Tamu", "Ruang Keluarga"],
+      "walls": {"material": "Cat interior (2 coats)", "cost_per_m2": 185000},
+      "floors": {"material": "Granit tile 60x60", "cost_per_m2": 320000},
+      "doors": {"material": "Pintu kayu solid", "cost_per_unit": 2500000},
+      "windows": {"material": "Jendela aluminium", "cost_per_m2": 950000}
+    },
+    "Bedroom": {
+      "aliases": ["Kamar Tidur"],
+      "walls": {"material": "Cat interior (2 coats)", "cost_per_m2": 185000},
+      "floors": {"material": "Laminate flooring", "cost_per_m2": 280000},
+      "doors": {"material": "Pintu kayu solid", "cost_per_unit": 2500000}
+    },
+    "Kitchen": {
+      "aliases": ["Dapur"],
+      "walls": {"material": "Cat interior (2 coats)", "cost_per_m2": 185000},
+      "floors": {"material": "Granit tile 60x60", "cost_per_m2": 320000}
+    }
+  }
+}
