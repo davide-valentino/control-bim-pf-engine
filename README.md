@@ -75,6 +75,7 @@ poetry run python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 | `GET` | `/api/v1/artifacts/{runId}/file/{file}` | Preview or stream image/JSON/SVG artifact |
 | `POST` | `/api/v1/replay` | Deterministically replay previous run by seed |
 | `POST` | `/api/v1/cad/feasibility` | End-to-end DXF to BOM costing + ControlNet render |
+| `POST` | `/api/v1/cad/feasibility/upload` | Multipart DXF upload -> end-to-end pre-feasibility job |
 
 ---
 

@@ -13,7 +13,7 @@ if (_root_dir / ".env.local").is_file():
 if (_root_dir / ".env").is_file():
     load_dotenv(_root_dir / ".env")
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Security, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Security, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 
@@ -261,5 +261,68 @@ def run_cad_feasibility(req: CadFeasibilityRequest):
         runId=run_id,
         status="queued",
         message="End-to-end CAD Pre-Feasibility job queued.",
+        createdAt=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@app.post(
+    "/api/v1/cad/feasibility/upload",
+    response_model=SubmitResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["CAD Pre-Feasibility"],
+    dependencies=[Depends(verify_api_key)],
+)
+async def upload_cad_feasibility(
+    file: UploadFile = File(..., description="DXF floorplan file"),
+    preset: str = Form("Luxury Minimal", description="BOM material catalog preset"),
+    targetStyle: str = Form("luxury-minimal", description="ControlNet visual restyling style"),
+    inputType: Literal["interior", "floorplan", "facade"] = Form("interior"),
+    roomId: int | None = Form(None, description="Optional room_id to focus the render on"),
+    dryRun: bool = Form(False, description="Generate CAD BOM and mock visual render offline"),
+):
+    """Upload a DXF file and queue the end-to-end pre-feasibility pipeline.
+
+    This is the browser-facing counterpart of ``/api/v1/cad/feasibility``, which
+    only accepts server-local paths. The uploaded file is stored under
+    ``artifacts/uploads/`` and passed to the same job queue.
+    """
+    filename = Path(file.filename or "upload.dxf").name
+    if not filename.lower().endswith(".dxf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .dxf files are supported.",
+        )
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+
+    max_bytes = int(os.getenv("MAX_DXF_UPLOAD_BYTES", str(50 * 1024 * 1024)))
+    if len(contents) > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"DXF exceeds the {max_bytes // (1024 * 1024)} MB upload limit.",
+        )
+
+    upload_dir = job_manager.artifacts_root / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    dxf_path = upload_dir / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}-{filename}"
+    dxf_path.write_bytes(contents)
+
+    run_id = job_manager.submit_cad_feasibility_job(CadFeasibilityRequest(
+        dxfPath=str(dxf_path),
+        preset=preset,
+        targetStyle=targetStyle,
+        inputType=inputType,
+        roomId=roomId,
+        dryRun=dryRun,
+    ))
+    return SubmitResponse(
+        runId=run_id,
+        status="queued",
+        message="Uploaded CAD Pre-Feasibility job queued.",
         createdAt=datetime.now(timezone.utc).isoformat(),
     )

@@ -20,6 +20,7 @@ This document describes the architecture, setup, configuration, and API contract
 │  - POST /api/v1/submit        - GET /api/v1/status/{id}│
 │  - POST /api/v1/replay        - GET /api/v1/artifacts  │
 │  - POST /api/v1/cad/feasibility - GET /health          │
+│  - POST /api/v1/cad/feasibility/upload (multipart DXF) │
 └───────────────────────────┬────────────────────────────┘
                             │ In-Process Worker Queue
                             ▼
