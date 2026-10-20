@@ -1,19 +1,16 @@
-import subprocess
 import json
-import os
-import sys
+
+from tests.helpers import run_script
 
 
-def test_parser_integration():
-    # Run the parser script to regenerate output
-    result = subprocess.run([sys.executable, "parse_dxf.py"], capture_output=True, text=True)
+def test_parser_integration(canonical_workspace):
+    # Run the parser script inside an isolated workspace
+    result = run_script("parse_dxf.py", canonical_workspace)
     assert result.returncode == 0, f"Parser failed: {result.stderr}"
 
-    # Ensure output file exists
-    output_path = os.path.join(".output", "raw_geometry.json")
-    assert os.path.exists(output_path), "raw_geometry.json not found after running parser"
+    output_path = canonical_workspace / ".output" / "raw_geometry.json"
+    assert output_path.exists(), "raw_geometry.json not found after running parser"
 
-    # Load JSON
     with open(output_path) as f:
         data = json.load(f)
 
@@ -24,7 +21,7 @@ def test_parser_integration():
         {"start": [5000.0, 4000.0], "end": [0.0, 4000.0]},
         {"start": [0.0, 4000.0], "end": [0.0, 0.0]},
     ]
-    expected_door = {"start": [1000.0, 0.0], "end": [1900.0, 0.0]}
+    expected_door = {"start": [1000.0, 0.0], "end": [1900.0, 0.0], "layer": "A-DOOR"}
 
     # Validate walls
     assert data["walls"] == expected_walls, f"Walls mismatch: expected {expected_walls}, got {data['walls']}"

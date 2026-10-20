@@ -1,23 +1,18 @@
-import subprocess
 import json
-import os
-import sys
+
+from tests.helpers import run_script
 
 
-def test_report_room_names():
-    # Run the report generator script to regenerate output
-    result = subprocess.run([sys.executable, "report_generator.py"], capture_output=True, text=True)
+def test_report_room_names(canonical_workspace):
+    result = run_script("report_generator.py", canonical_workspace)
     assert result.returncode == 0, f"Report generator failed: {result.stderr}"
 
-    # Ensure output file exists
-    output_path = os.path.join(".output", "report.json")
-    assert os.path.exists(output_path), "report.json not found after running generator"
+    output_path = canonical_workspace / ".output" / "report.json"
+    assert output_path.exists(), "report.json not found after running generator"
 
-    # Load JSON
     with open(output_path) as f:
         data = json.load(f)
 
-    # Validate rooms_breakdown section
     assert "summary" in data, "Missing 'summary' section"
     summary = data["summary"]
     assert "rooms_breakdown" in summary, "Missing 'rooms_breakdown' in summary"

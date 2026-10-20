@@ -1,8 +1,5 @@
 """Unit and integration tests for style preset assignment."""
 import json
-import os
-import subprocess
-import sys
 import pytest
 
 from src.pipeline.materials import (
@@ -13,6 +10,7 @@ from src.pipeline.materials import (
     run_material_assignment
 )
 from src.pipeline.costing import estimate_cost
+from tests.helpers import run_script
 
 
 def test_presets_catalog_loaded():
@@ -189,31 +187,37 @@ def test_preset_cost_estimation():
     materials_data = assign_materials(semantic_data, preset="Luxury Minimal")
     costs = estimate_cost(materials_data)
 
-    # 20 m2 * 18.0 = 360.0 wall cost
-    # 1 door * 250.0 = 250.0 door cost
-    # Total = 610.0
-    assert abs(costs["total_cost"] - 610.0) < 1e-6
+    # Wall quantity = perimeter (18 m) * height (3 m) = 54 m2; 54 * 18.0 = 972.0
+    # Floor quantity = 20 m2 * 45.0 = 900.0
+    # 1 door * 250.0 = 250.0
+    # Total = 2122.0
+    assert abs(costs["total_cost"] - 2122.0) < 1e-6
     wall_item = next(i for i in costs["items"] if i["type"] == "wall")
     assert wall_item["material"] == "White Drywall"
-    assert abs(wall_item["cost"] - 360.0) < 1e-6
+    assert abs(wall_item["cost"] - 972.0) < 1e-6
+
+    floor_item = next(i for i in costs["items"] if i["type"] == "floor")
+    assert floor_item["material"] == "Oak Hardwood"
+    assert abs(floor_item["cost"] - 900.0) < 1e-6
 
     door_item = next(i for i in costs["items"] if i["type"] == "door")
     assert door_item["material"] == "Frameless Glass Door"
     assert abs(door_item["cost"] - 250.0) < 1e-6
 
 
-def test_cli_preset_execution():
+def test_cli_preset_execution(canonical_workspace):
     """Verify material assignment script with --preset argument."""
-    subprocess.run([sys.executable, "semantic_classification.py"], check=True)
-
-    test_out = os.path.join(".output", "test_preset_materials.json")
-    result = subprocess.run(
-        [sys.executable, "material_assignment.py", "--preset", "Rustic", "--output", test_out],
-        capture_output=True,
-        text=True
+    test_out = canonical_workspace / ".output" / "test_preset_materials.json"
+    result = run_script(
+        "material_assignment.py",
+        canonical_workspace,
+        "--preset",
+        "Rustic",
+        "--output",
+        str(test_out),
     )
     assert result.returncode == 0, f"Command failed: {result.stderr}"
-    assert os.path.exists(test_out)
+    assert test_out.exists()
 
     with open(test_out) as f:
         data = json.load(f)

@@ -2,11 +2,38 @@
 import json
 import os
 
-# Hardcoded default fallback catalog
+# Hardcoded default fallback catalog.
+# NOTE: these are placeholder benchmark rates, not partner-firm rates. Every
+# entry carries its currency and provenance so a real rate sheet can replace
+# them without changing the costing logic.
 MATERIAL_CATALOG = {
     "wall": {"name": "Drywall 12mm", "material": "Drywall 12mm", "cost_per_m2": 15.0},
-    "door": {"name": "Oak Door", "material": "Oak Door", "cost_per_unit": 120.0}
+    "floor": {"name": "Ceramic Tile", "material": "Ceramic Tile", "cost_per_m2": 25.0},
+    "door": {"name": "Oak Door", "material": "Oak Door", "cost_per_unit": 120.0},
+    "window": {"name": "Aluminum Window", "material": "Aluminum Window", "cost_per_m2": 110.0},
 }
+
+CATALOG_METADATA = {
+    "currency": "USD",
+    "as_of": "2026-08-31",
+    "source": "placeholder benchmark rates - NOT partner-firm rates",
+}
+
+
+def load_catalog_metadata(path=None):
+    """Load rate provenance metadata (currency, as-of date, source)."""
+    candidates = [path] if path else [
+        os.path.join(os.path.dirname(__file__), "presets.json"),
+        os.path.join("src", "pipeline", "presets.json"),
+        "presets.json",
+    ]
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            with open(candidate) as f:
+                data = json.load(f)
+            if isinstance(data, dict) and "metadata" in data:
+                return data["metadata"]
+    return dict(CATALOG_METADATA)
 
 
 def load_presets(path=None):
@@ -87,10 +114,23 @@ def _normalize_material_entry(entry):
     return norm
 
 
-def assign_materials(data, preset=None, catalog=None):
-    """Assign catalog materials to rooms and doors, optionally applying a style preset."""
+def _opening_type(opening):
+    """Return 'window' or 'door' for a semantic opening (legacy dicts default to door)."""
+    if isinstance(opening, dict):
+        return opening.get("type") or "door"
+    return "door"
+
+
+def _opening_material(opening, door_mat, window_mat):
+    return window_mat if _opening_type(opening) == "window" else door_mat
+
+
+def assign_materials(data, preset=None, catalog=None, metadata=None):
+    """Assign catalog materials to rooms and openings, optionally applying a style preset."""
     if catalog is None:
         catalog = STYLE_PRESETS
+    if metadata is None:
+        metadata = dict(CATALOG_METADATA)
 
     if preset:
         if isinstance(preset, str):
@@ -138,14 +178,33 @@ def assign_materials(data, preset=None, catalog=None):
 
         door_mat = _normalize_material_entry(default_door_mat) if default_door_mat else MATERIAL_CATALOG["door"]
 
+        default_window_mat = None
+        if "Living Room" in preset_rooms and "windows" in preset_rooms["Living Room"]:
+            default_window_mat = preset_rooms["Living Room"]["windows"]
+        elif preset_rooms:
+            first_room = next(iter(preset_rooms.values()))
+            default_window_mat = first_room.get("windows")
+
+        window_mat = (
+            _normalize_material_entry(default_window_mat)
+            if default_window_mat
+            else MATERIAL_CATALOG["window"]
+        )
+
         enriched_doors = []
-        for door in data.get("doors", []):
+        for opening in data.get("doors", []):
             enriched_doors.append({
-                "geometry": door,
-                "material": door_mat
+                "geometry": opening,
+                "type": _opening_type(opening),
+                "material": _opening_material(opening, door_mat, window_mat),
             })
 
-        return {"rooms": enriched_rooms, "doors": enriched_doors, "preset": preset_name}
+        return {
+            "rooms": enriched_rooms,
+            "doors": enriched_doors,
+            "preset": preset_name,
+            "metadata": metadata,
+        }
 
     # Default legacy behavior when no preset is specified
     enriched_rooms = []
@@ -153,27 +212,33 @@ def assign_materials(data, preset=None, catalog=None):
         room_info = {
             "room_id": room.get("room_id"),
             "boundary": room["boundary"],
-            "material": MATERIAL_CATALOG["wall"]
+            "material": MATERIAL_CATALOG["wall"],
+            "materials": {
+                "walls": MATERIAL_CATALOG["wall"],
+                "floors": MATERIAL_CATALOG["floor"],
+            },
         }
         if "name" in room:
             room_info["name"] = room["name"]
         enriched_rooms.append(room_info)
 
     enriched_doors = []
-    for door in data.get("doors", []):
+    for opening in data.get("doors", []):
         enriched_doors.append({
-            "geometry": door,
-            "material": MATERIAL_CATALOG["door"]
+            "geometry": opening,
+            "type": _opening_type(opening),
+            "material": _opening_material(opening, MATERIAL_CATALOG["door"], MATERIAL_CATALOG["window"]),
         })
 
-    return {"rooms": enriched_rooms, "doors": enriched_doors}
+    return {"rooms": enriched_rooms, "doors": enriched_doors, "metadata": metadata}
 
 
 def run_material_assignment(input_path=".output/semantic.json", output_path=".output/materials.json", preset=None, catalog_path=None):
     """Execute material assignment stage."""
     data = load_semantic(input_path)
     catalog = load_presets(catalog_path) if catalog_path else STYLE_PRESETS
-    enriched = assign_materials(data, preset=preset, catalog=catalog)
+    metadata = load_catalog_metadata(catalog_path)
+    enriched = assign_materials(data, preset=preset, catalog=catalog, metadata=metadata)
     if output_path:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         with open(output_path, "w") as f:

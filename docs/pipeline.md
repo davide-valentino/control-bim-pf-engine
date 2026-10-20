@@ -73,13 +73,13 @@ simple_room.dxf
       │ ──> .output/raw_geometry.json (walls, doors, labels)
       ▼
 2. Semantics (src/pipeline/semantics.py)
-      │ ──> .output/semantic.json (closed boundaries, room names, doors)
+      │ ──> .output/semantic.json (closed boundaries, room names, clustered openings)
       ▼
 3. Materials (src/pipeline/materials.py)
-      │ ──> .output/materials.json (assigned wall & door catalog items)
+      │ ──> .output/materials.json (assigned wall/floor/door/window catalog items + rate metadata)
       ▼
 4. Costing (src/pipeline/costing.py)
-      │ ──> .output/costs.json (calculated areas, unit costs, totals)
+      │ ──> .output/costs.json (quantities, unit costs, totals, currency/as_of/source)
       ▼
 5. Report Orchestrator (src/report_generator.py)
       │ ──> .output/report.json (consolidated breakdown & summary)
@@ -87,6 +87,22 @@ simple_room.dxf
 6. Visualization (src/visualization.py)
       │ ──> .output/visualization.svg (2D floorplan with dimensions & labels)
 ```
+
+### Deterministic quantity rules
+
+| Component | Quantity | Rate |
+|---|---|---|
+| Wall | room perimeter × `WALL_HEIGHT_M` (default 3.0 m) | `cost_per_m2` |
+| Floor | room boundary area | `cost_per_m2` |
+| Door | one clustered opening unit | `cost_per_unit` |
+| Window | clustered opening width × `WINDOW_HEIGHT_M` (default 1.5 m) | `cost_per_m2` |
+
+Opening segments are clustered (default tolerance 250 mm, `OPENING_CLUSTER_TOLERANCE_MM`)
+before costing so a door drawn with a panel, swing arc, and jambs is counted once.
+
+Rates carry a `metadata` block (`currency`, `as_of`, `source`) that is propagated
+into `costs.json` and `report.json`. The shipped presets are placeholder
+benchmarks, **not** partner-firm Indonesian rates.
 
 ---
 

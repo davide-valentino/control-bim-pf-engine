@@ -14,6 +14,19 @@ def polygon_area(boundary):
     return abs(area) / 2.0
 
 
+def polygon_perimeter(boundary):
+    """Compute the closed polygon perimeter in mm."""
+    if not boundary or len(boundary) < 2:
+        return 0.0
+    perimeter = 0.0
+    n = len(boundary)
+    for i in range(n):
+        x1, y1 = boundary[i]
+        x2, y2 = boundary[(i + 1) % n]
+        perimeter += ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+    return perimeter
+
+
 def polygon_centroid(boundary):
     """Compute centroid (cx, cy) of a polygon boundary."""
     if not boundary:

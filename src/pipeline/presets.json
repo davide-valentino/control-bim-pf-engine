@@ -78,5 +78,11 @@
         "windows": { "material": "Industrial Glass Block", "cost_per_m2": 70.0 }
       }
     }
+  },
+  "metadata": {
+    "currency": "USD",
+    "as_of": "2026-08-31",
+    "source": "placeholder benchmark rates - NOT partner-firm rates",
+    "note": "Replace with the partner firm's current Indonesian rate sheet (IDR) before quoting any client."
   }
 }

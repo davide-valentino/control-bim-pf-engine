@@ -1,13 +1,10 @@
 import json
-import os
 
 
-def test_raw_geometry_structure_and_coordinates():
-    # Ensure output file exists
-    output_path = os.path.join(".output", "raw_geometry.json")
-    assert os.path.exists(output_path), "raw_geometry.json not found"
+def test_raw_geometry_structure_and_coordinates(canonical_workspace):
+    output_path = canonical_workspace / ".output" / "raw_geometry.json"
+    assert output_path.exists(), "raw_geometry.json not found"
 
-    # Load JSON
     with open(output_path) as f:
         data = json.load(f)
 
@@ -22,7 +19,7 @@ def test_raw_geometry_structure_and_coordinates():
         {"start": [5000.0, 4000.0], "end": [0.0, 4000.0]},
         {"start": [0.0, 4000.0], "end": [0.0, 0.0]},
     ]
-    expected_door = {"start": [1000.0, 0.0], "end": [1900.0, 0.0]}
+    expected_door = {"start": [1000.0, 0.0], "end": [1900.0, 0.0], "layer": "A-DOOR"}
 
     # Validate walls
     assert len(data["walls"]) == len(expected_walls), f"Expected {len(expected_walls)} walls, got {len(data['walls'])}"

@@ -1,9 +1,8 @@
-import subprocess
 import json
-import os
-import sys
+
 from src.geometry import point_in_polygon, polygon_centroid
 from src.pipeline.semantics import classify_rooms, normalize_label
+from tests.helpers import run_script
 
 
 def test_normalize_label():
@@ -85,20 +84,18 @@ def test_semantic_fallback_when_no_label():
     assert result["rooms"][0]["room_id"] == 1
 
 
-def test_semantic_classification():
-    # Run the semantic classification script to regenerate output
-    result = subprocess.run([sys.executable, "semantic_classification.py"], capture_output=True, text=True)
+def test_semantic_classification(canonical_workspace):
+    # Run the semantic classification script inside an isolated workspace
+    result = run_script("semantic_classification.py", canonical_workspace)
     assert result.returncode == 0, f"Semantic classification failed: {result.stderr}"
 
-    # Ensure output file exists
-    output_path = os.path.join(".output", "semantic.json")
-    assert os.path.exists(output_path), "semantic.json not found after running classification"
+    output_path = canonical_workspace / ".output" / "semantic.json"
+    assert output_path.exists(), "semantic.json not found after running classification"
 
-    # Load JSON
     with open(output_path) as f:
         data = json.load(f)
 
-    # Expected room boundary and door
+    # Expected room boundary and clustered opening
     expected_boundary = [
         [0.0, 0.0],
         [5000.0, 0.0],
@@ -106,7 +103,15 @@ def test_semantic_classification():
         [0.0, 4000.0],
         [0.0, 0.0]
     ]
-    expected_door = {"start": [1000.0, 0.0], "end": [1900.0, 0.0]}
+    expected_opening = {
+        "type": "door",
+        "layer": "A-DOOR",
+        "segments": 1,
+        "width_mm": 900.0,
+        "bbox": [1000.0, 0.0, 1900.0, 0.0],
+        "start": [1000.0, 0.0],
+        "end": [1900.0, 0.0],
+    }
 
     # Validate rooms
     assert "rooms" in data, "Missing 'rooms' key"
@@ -115,7 +120,7 @@ def test_semantic_classification():
     assert room["name"] == "Living Room", f"Room name mismatch: expected 'Living Room', got {room.get('name')}"
     assert room["boundary"] == expected_boundary, f"Room boundary mismatch: expected {expected_boundary}, got {room['boundary']}"
 
-    # Validate doors
+    # Validate clustered openings
     assert "doors" in data, "Missing 'doors' key"
     assert len(data["doors"]) == 1, f"Expected 1 door, got {len(data['doors'])}"
-    assert data["doors"][0] == expected_door, f"Door mismatch: expected {expected_door}, got {data['doors'][0]}"
+    assert data["doors"][0] == expected_opening, f"Opening mismatch: expected {expected_opening}, got {data['doors'][0]}"

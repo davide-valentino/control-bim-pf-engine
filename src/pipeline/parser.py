@@ -45,14 +45,14 @@ def _extract_entity_geometry(entity, extracted_data):
             start = (float(entity.dxf.start.x), float(entity.dxf.start.y))
             end = (float(entity.dxf.end.x), float(entity.dxf.end.y))
             if start != end:
-                extracted_data["doors"].append({"start": start, "end": end})
+                extracted_data["doors"].append({"start": start, "end": end, "layer": layer})
         elif etype in ("LWPOLYLINE", "POLYLINE"):
             pts = [(float(p[0]), float(p[1])) for p in entity.get_points()]
             is_closed = getattr(entity, "closed", False)
             for i in range(len(pts) - (0 if is_closed else 1)):
                 p1, p2 = pts[i], pts[(i + 1) % len(pts)]
                 if p1 != p2:
-                    extracted_data["doors"].append({"start": p1, "end": p2})
+                    extracted_data["doors"].append({"start": p1, "end": p2, "layer": layer})
 
     # 3. Text and Annotations
     if etype == "TEXT":

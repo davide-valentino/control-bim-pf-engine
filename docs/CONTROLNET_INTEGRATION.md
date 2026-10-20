@@ -26,6 +26,7 @@ simple_room.dxf / CAD Input
             ▼
  5. Artifact Persistence (artifacts/evaluations/<timestamp>/)
       - output-<caseId>-run<runId>.png
+      - output-mask-<caseId>-run<runId>.png  (binarized output composition)
       - controlmap-<caseId>-run<runId>.png
       - controlmap-mask-<caseId>-run<runId>.png
       - silhouette-mask-<caseId>.png
@@ -33,7 +34,9 @@ simple_room.dxf / CAD Input
       - runs.json, summary.json, README.txt, implementation-report.json
             │
             ▼
- 6. Silhouette IoU Gating (IoU >= IOU_THRESHOLD, default 0.85)
+ 6. Output Silhouette IoU Gating (IoU >= IOU_THRESHOLD, default 0.85)
+    Input silhouette vs. binarized OUTPUT. The input-vs-control-map score is
+    recorded separately as conditioningIou and never gates the run.
 ```
 
 ---
@@ -46,8 +49,8 @@ simple_room.dxf / CAD Input
 | `REPLICATE_CONTROLNET_DEPTH_MODEL` | No | `lucataco/sdxl-controlnet-depth:465fb41789dc2203a9d7158be11d1d2570606a039c65e0e236fd329b5eecb10c` | Model identifier for interior depth restyling. |
 | `REPLICATE_CONTROLNET_CANNY_MODEL` | No | `jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613` | Model identifier for floorplans and Canny edges. |
 | `REPLICATE_CONTROLNET_FACADE_MODEL` | No | `jagilley/controlnet-canny:aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613` | Model identifier for building facades. |
-| `IOU_THRESHOLD` | No | `0.85` | Hard failure threshold for silhouette IoU. |
-| `IOU_WARN_THRESHOLD` | No | `0.90` | Warning threshold for silhouette IoU in tiered gating. |
+| `IOU_THRESHOLD` | No | `0.85` | Hard failure threshold for output-vs-input silhouette IoU. |
+| `IOU_WARN_THRESHOLD` | No | `0.90` | Warning threshold for output-vs-input silhouette IoU. |
 | `LATENCY_BUDGET_MS` | No | None | Optional P95 latency budget in milliseconds. |
 | `WARMUP_PROBE` | No | `0` | Set to `1` to run a model warm-up probe before timed evaluation runs. |
 | `MAX_DATA_URL_SIZE_BYTES` | No | `5000000` (5 MB) | Maximum size for inline base64 data URLs before failing. |
@@ -125,9 +128,10 @@ Every evaluation run creates a self-contained directory under `artifacts/evaluat
 - **`output-<caseId>-run<runId>.png`**: Full rendered output image downloaded from provider.
 - **`controlmap-<caseId>-run<runId>.png`**: Canonical conditioning control map used for structural guidance.
 - **`controlmap-mask-<caseId>-run<runId>.png`**: Thresholded binary mask of the control map.
+- **`output-mask-<caseId>-run<runId>.png`**: Binarized composition of the rendered output (gate operand).
 - **`silhouette-mask-<caseId>.png`**: Ground-truth binary silhouette mask exported from CAD/SVG.
 - **`payload-<caseId>-run<runId>.json`**: Sanitized provider payload for exact auditability.
-- **`runs.json`**: Detailed array of run records including `seed`, `latencyMs`, `imageHash_SHA256`, `iou`, and pass/fail status.
+- **`runs.json`**: Detailed array of run records including `seed`, `latencyMs`, `imageHash_SHA256`, `iou` (output vs. input), `conditioningIou` (legacy diagnostic), and pass/fail status.
 - **`summary.json`**: Aggregate statistics including total runs, success/failure counts, and P50/P95 latencies.
 - **`implementation-report.json`**: Deliverables summary for validation and compliance.
 - **`README.txt`**: Human-readable run summary.
@@ -137,4 +141,4 @@ Every evaluation run creates a self-contained directory under `artifacts/evaluat
 ## 6. Strict Failure Semantics
 
 - **No Mocks or Fallbacks**: Evaluation runs communicate directly with the live provider. If API tokens, model identifiers, or network connections fail, the run immediately terminates with a non-zero exit code.
-- **IoU Gating**: If any run generates an IoU below `IOU_THRESHOLD`, the run is marked failed and the evaluation process exits non-zero.
+- **IoU Gating**: If any run generates an output-vs-input silhouette IoU below `IOU_THRESHOLD`, the run is marked failed and the evaluation process exits non-zero. The gate deliberately measures the **rendered output**; the legacy input-vs-control-map score is saved as `conditioningIou` but never gates a run.

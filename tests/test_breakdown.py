@@ -1,5 +1,4 @@
 """Unit tests for room breakdown logic."""
-import pytest
 from src.breakdown import generate_rooms_breakdown
 
 
@@ -18,7 +17,7 @@ def test_generate_rooms_breakdown():
                     ]
                 }
             ],
-            "doors": [{"start": [1000.0, 0.0], "end": [1900.0, 0.0]}]
+            "doors": [{"start": [1000.0, 0.0], "end": [1900.0, 0.0], "type": "door"}]
         },
         "costs": {
             "items": [
@@ -26,8 +25,15 @@ def test_generate_rooms_breakdown():
                     "type": "wall",
                     "room_id": 1,
                     "material": "Drywall 12mm",
+                    "area_m2": 54.0,
+                    "cost": 810.0
+                },
+                {
+                    "type": "floor",
+                    "room_id": 1,
+                    "material": "Ceramic Tile",
                     "area_m2": 20.0,
-                    "cost": 300.0
+                    "cost": 500.0
                 },
                 {
                     "type": "door",
@@ -46,8 +52,11 @@ def test_generate_rooms_breakdown():
     assert room["name"] == "Living Room"
     assert abs(room["area_m2"] - 20.0) < 1e-6
     assert room["materials"]["wall"]["material"] == "Drywall 12mm"
-    assert abs(room["materials"]["wall"]["cost"] - 300.0) < 1e-6
+    assert abs(room["materials"]["wall"]["area_m2"] - 54.0) < 1e-6
+    assert abs(room["materials"]["wall"]["cost"] - 810.0) < 1e-6
+    assert room["materials"]["floor"]["material"] == "Ceramic Tile"
+    assert abs(room["materials"]["floor"]["cost"] - 500.0) < 1e-6
     assert room["materials"]["door"]["material"] == "Oak Door"
     assert room["materials"]["door"]["count"] == 1
     assert abs(room["materials"]["door"]["cost"] - 120.0) < 1e-6
-    assert abs(room["total_cost"] - 420.0) < 1e-6
+    assert abs(room["total_cost"] - 1430.0) < 1e-6

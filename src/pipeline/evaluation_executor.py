@@ -150,8 +150,14 @@ def execute_evaluation(
                 local_control_path.write_bytes(control_bytes)
             save_control_map_and_mask(local_control_path, local_control_path, control_mask_path)
 
-            # 6. Compute silhouette IoU
-            iou = compute_iou(silhouette_mask_path, control_mask_path)
+            # 6. Gate on the rendered OUTPUT (not on the input conditioning map).
+            # The legacy silhouette-vs-control-map IoU is kept only as a
+            # diagnostic: both of its operands derive from the input, so it can
+            # never detect a hallucinated or geometry-drifted output.
+            output_mask_path = target_dir / f"output-mask-{payload.caseId}-run{run_id}.png"
+            save_binary_mask(output_path, output_mask_path)
+            iou = compute_iou(silhouette_mask_path, output_mask_path)
+            conditioning_iou = compute_iou(silhouette_mask_path, control_mask_path)
             
             # Tiered gating status
             run_warning = None
@@ -188,8 +194,10 @@ def execute_evaluation(
                 "controlMapPath": str(local_control_path),
                 "controlMapMaskPath": str(control_mask_path),
                 "silhouetteMaskPath": str(silhouette_mask_path),
+                "outputMaskPath": str(output_mask_path),
                 "imageHash_SHA256": output_sha256,
                 "iou": round(iou, 4),
+                "conditioningIou": round(conditioning_iou, 4),
                 "iouThreshold": iou_threshold,
                 "iouWarnThreshold": iou_warn_threshold,
                 "status": run_status,

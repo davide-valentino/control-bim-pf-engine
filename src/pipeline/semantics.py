@@ -2,8 +2,12 @@
 import json
 import os
 import re
+from collections import Counter
+
 from shapely.geometry import LineString, Polygon, Point
 from shapely.ops import polygonize, unary_union
+from shapely.strtree import STRtree
+
 from src.geometry import point_in_polygon, polygon_centroid
 
 
@@ -172,11 +176,93 @@ def stitch_walls(walls):
     return loops
 
 
+DOOR_LAYER_TOKENS = re.compile(r"(?i)(door|pintu|boven|a-door)")
+WINDOW_LAYER_TOKENS = re.compile(r"(?i)(window|jendela|kaca|glazing)")
+
+
+def _opening_type(layers):
+    """Classify a clustered opening as a door or a window from its source layers."""
+    joined = " ".join(layer or "" for layer in layers)
+    if WINDOW_LAYER_TOKENS.search(joined) and not DOOR_LAYER_TOKENS.search(joined):
+        return "window"
+    return "door"
+
+
+def cluster_openings(doors, tolerance_mm=None):
+    """Cluster raw opening line segments (door swings, jambs, window panes) into units.
+
+    A single CAD door/window is normally drawn with several LINE/POLYLINE entities.
+    Counting every segment as a complete unit inflates the BOM by an order of
+    magnitude. Segments whose geometry is within ``tolerance_mm`` of each other
+    are merged into one opening, and the widest extent of the cluster is treated
+    as the opening width.
+    """
+    if tolerance_mm is None:
+        tolerance_mm = float(os.getenv("OPENING_CLUSTER_TOLERANCE_MM", "250"))
+
+    segments = []
+    for item in doors:
+        if not isinstance(item, dict) or "start" not in item or "end" not in item:
+            continue
+        p1 = tuple(item["start"][:2])
+        p2 = tuple(item["end"][:2])
+        if p1 == p2:
+            continue
+        segments.append({"line": LineString([p1, p2]), "layer": item.get("layer", ""), "start": p1, "end": p2})
+
+    if not segments:
+        return []
+
+    lines = [segment["line"] for segment in segments]
+    tree = STRtree(lines)
+    parent = list(range(len(lines)))
+
+    def find(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    def union(left, right):
+        left_root, right_root = find(left), find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    for index, line in enumerate(lines):
+        for candidate in tree.query(line.buffer(tolerance_mm)):
+            other = int(candidate)
+            if other == index or find(index) == find(other):
+                continue
+            if lines[other].distance(line) <= tolerance_mm:
+                union(index, other)
+
+    groups = {}
+    for index in range(len(lines)):
+        groups.setdefault(find(index), []).append(index)
+
+    openings = []
+    for members in sorted(groups.values(), key=lambda group: min(group)):
+        min_x, min_y, max_x, max_y = unary_union([lines[i] for i in members]).bounds
+        layers = [segments[i]["layer"] for i in members]
+        longest = max(members, key=lambda i: lines[i].length)
+        openings.append({
+            "type": _opening_type(layers),
+            "layer": Counter(layers).most_common(1)[0][0],
+            "segments": len(members),
+            "width_mm": round(max(max_x - min_x, max_y - min_y), 3),
+            "bbox": [round(min_x, 3), round(min_y, 3), round(max_x, 3), round(max_y, 3)],
+            "start": list(segments[longest]["start"]),
+            "end": list(segments[longest]["end"]),
+        })
+    return openings
+
+
 def classify_rooms(data):
     """Classify walls and openings into rooms and associate spatial labels."""
     wall_dicts = [w for w in data.get("walls", []) if isinstance(w, dict) and "start" in w and "end" in w]
     stitched = stitch_walls(wall_dicts)
     labels = data.get("labels", [])
+    openings = cluster_openings(data.get("doors", []))
 
     # 1. Fast-path for simple synthetic/single-loop drawings
     if len(stitched) > 0 and len(wall_dicts) < 20:
@@ -199,7 +285,7 @@ def classify_rooms(data):
                 "name": room_name,
                 "boundary": loop,
             })
-        return {"rooms": rooms, "doors": data.get("doors", [])}
+        return {"rooms": rooms, "doors": openings}
 
     # 2. Topological polygonization for real-world / complex multi-line CAD packages
     segments = []
@@ -221,7 +307,7 @@ def classify_rooms(data):
                 segments.append(LineString([p1, p2]))
 
     if not segments:
-        return {"rooms": [], "doors": data.get("doors", [])}
+        return {"rooms": [], "doors": openings}
 
     merged = unary_union(segments)
     candidate_polys = [
@@ -284,9 +370,9 @@ def classify_rooms(data):
         })
         room_idx += 1
 
-    return {"rooms": rooms, "doors": data.get("doors", [])}
+    return {"rooms": rooms, "doors": openings}
 
-    return {"rooms": rooms, "doors": data.get("doors", [])}
+    return {"rooms": rooms, "doors": openings}
 
 
 def classify_semantics(input_path=".output/raw_geometry.json", output_path=".output/semantic.json"):

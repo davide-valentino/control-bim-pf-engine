@@ -61,11 +61,17 @@ def test_real_provider_evaluation_run(tmp_path):
     assert os.path.exists(run["controlMapPath"])
     assert os.path.exists(run["controlMapMaskPath"])
     assert os.path.exists(run["silhouetteMaskPath"])
+    assert os.path.exists(run["outputMaskPath"])
 
-    iou = compute_iou(run["silhouetteMaskPath"], run["controlMapMaskPath"])
+    # The gate compares the rendered output against the input silhouette.
+    iou = compute_iou(run["silhouetteMaskPath"], run["outputMaskPath"])
     threshold = float(os.getenv("IOU_THRESHOLD", "0.85"))
     assert iou >= threshold, f"IoU {iou} below threshold {threshold}"
     assert run["passed"] is True
+
+    # Legacy input-vs-control-map metric is retained as a diagnostic only.
+    conditioning_iou = compute_iou(run["silhouetteMaskPath"], run["controlMapMaskPath"])
+    assert abs(run["conditioningIou"] - conditioning_iou) < 1e-3
 
 
 def test_calculate_stats():
