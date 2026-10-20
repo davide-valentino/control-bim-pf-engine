@@ -77,6 +77,8 @@ poetry run python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 | `POST` | `/api/v1/cad/feasibility` | End-to-end DXF to BOM costing + ControlNet render |
 | `POST` | `/api/v1/cad/feasibility/upload` | Multipart DXF upload -> end-to-end pre-feasibility job |
 
+Feasibility jobs cap per-room renders with `maxRoomRenders` (default `3`; `0` = BOM + main concept only) so a full-house CAD file does not trigger dozens of paid provider calls.
+
 ---
 
 ## 🧪 Interactive Demo Scripts

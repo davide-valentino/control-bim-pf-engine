@@ -487,6 +487,7 @@ class JobManager:
 
             # 2. Per-Room Interior Renders (when rooms exist)
             rooms_to_render = [r for r in rooms if req.roomId is None or r.get("room_id") == req.roomId]
+            rooms_to_render = rooms_to_render[: req.maxRoomRenders]
             for room in rooms_to_render:
                 r_id = room.get("room_id", 1)
                 room_sil_path = str(target_dir / f"cad_room_{r_id}_silhouette.png")

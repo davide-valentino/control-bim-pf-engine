@@ -71,6 +71,12 @@ class CadFeasibilityRequest(BaseModel):
     roomId: int | None = Field(
         default=None, description="Optional room_id to focus on for interior rendering (defaults to first room)"
     )
+    maxRoomRenders: int = Field(
+        default=3,
+        ge=0,
+        le=50,
+        description="Maximum per-room interior renders to generate (0 = main concept only)",
+    )
     overrides: dict[str, Any] | None = Field(
         default=None, description="Optional model parameter overrides"
     )

@@ -28,6 +28,7 @@ def test_upload_cad_feasibility_dry_run():
                 "preset": "Luxury Minimal",
                 "targetStyle": "tropical-boutique",
                 "inputType": "interior",
+                "maxRoomRenders": "0",
                 "dryRun": "true",
             },
         )
@@ -41,6 +42,7 @@ def test_upload_cad_feasibility_dry_run():
     artifacts = status_data.get("artifactPaths", {})
     assert "report.json" in artifacts
     assert "costs.json" in artifacts
+    assert not any(name.startswith("output-cad-room-") for name in artifacts), "maxRoomRenders=0 must skip room renders"
 
 
 def test_upload_rejects_non_dxf():

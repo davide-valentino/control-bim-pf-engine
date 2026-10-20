@@ -278,6 +278,7 @@ async def upload_cad_feasibility(
     targetStyle: str = Form("luxury-minimal", description="ControlNet visual restyling style"),
     inputType: Literal["interior", "floorplan", "facade"] = Form("interior"),
     roomId: int | None = Form(None, description="Optional room_id to focus the render on"),
+    maxRoomRenders: int = Form(3, description="Maximum per-room renders (0 = main concept only)"),
     dryRun: bool = Form(False, description="Generate CAD BOM and mock visual render offline"),
 ):
     """Upload a DXF file and queue the end-to-end pre-feasibility pipeline.
@@ -318,6 +319,7 @@ async def upload_cad_feasibility(
         targetStyle=targetStyle,
         inputType=inputType,
         roomId=roomId,
+        maxRoomRenders=maxRoomRenders,
         dryRun=dryRun,
     ))
     return SubmitResponse(
